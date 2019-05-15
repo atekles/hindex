@@ -16,7 +16,7 @@ You can install the released version of hindex from [GitHub](https://github.com)
 # if devtools is not installed yet:
 install.packages("devtools")
 
-devtools::install_github("hindex")
+devtools::install_github("atekles/hindex")
 ```
 
 Example
