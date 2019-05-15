@@ -79,7 +79,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
         unique(group_boundaries[order(group_boundaries)])
       groups <- length(group_boundaries_ordered) + 1
 
-      groupBoundariesOrdered <- vapply(1:groups, FUN = function(currentGroup) {
+      groupBoundariesOrdered <- lapply(1:groups, FUN = function(currentGroup) {
         if (currentGroup == 1) {
           return(c(0, group_boundaries_ordered[1] - .Machine$double.eps))
         } else if (currentGroup == groups) {
@@ -88,7 +88,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
           (c(group_boundaries_ordered[currentGroup - 1],
              group_boundaries_ordered[currentGroup] - .Machine$double.eps))
         }
-      }, FUN.VALUE = double(2))
+      })
 
     } else {
       stop('if group_boundaries is specified,
@@ -121,8 +121,13 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
        if (groups > 1) {
          groupsScientists <- lapply(1:groups, function(currentGroup) {
-           which(hRun[[1]] >= groupBoundariesOrdered[[currentGroup]][1] &
+           currentScientists <- which(hRun[[1]] >=
+                                        groupBoundariesOrdered[[currentGroup]][1] &
                    hRun[[1]] <= groupBoundariesOrdered[[currentGroup]][2])
+           if (length(currentScientists) <= 0) {
+             warning(paste('no scientist in group', currentGroup, sep = ' '))
+           }
+           return(currentScientists)
          })
        } else {
          groupsScientists <- list(1:length(hRun[[1]]))
@@ -173,8 +178,14 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
        if (groups > 1) {
          groupsScientists <- lapply(1:groups, function(currentGroup) {
-           which(simdata$h[[hAlphaRunIndex]][[1]] >= groupBoundariesOrdered[[currentGroup]][1] &
-                   simdata$h[[hAlphaRunIndex]][[1]] <= groupBoundariesOrdered[[currentGroup]][2])
+           currentScientists <- which(simdata$h[[hAlphaRunIndex]][[1]] >=
+                                        groupBoundariesOrdered[[currentGroup]][1] &
+                   simdata$h[[hAlphaRunIndex]][[1]] <=
+                     groupBoundariesOrdered[[currentGroup]][2])
+           if (length(currentScientists) <= 0) {
+             warning(paste('no scientist in group', currentGroup, sep = ' '))
+           }
+           return(currentScientists)
          })
        } else {
          groupsScientists <- list(1:length(simdata$h[[1]][[1]]))
