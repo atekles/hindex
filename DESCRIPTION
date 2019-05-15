@@ -1,0 +1,28 @@
+Package: hindex
+Title: Provide Functions for Simulating the Development of h-index Values
+Version: 0.1.0
+Authors@R: c(
+    person(given = "Alexander",
+           family = "Tekles",
+           role = c("aut", "cre"),
+           email = "alexander.tekles@soziologie.uni-muenchen.de"), 
+    person(given = "Lutz", 
+           family = "Bornmann", 
+           role = "ctb"), 
+    person(given = "Christian", 
+           family = "Ganser", 
+           role = "ctb"))
+Description: H-index is a bibliometric indicator. This package provides
+  functions to simulate how this indicator may develop over time for 
+  a given set of researchers and to visualize the simulation data. 
+  The implementation is based on the STATA ado h-index. 
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Suggests: 
+    testthat
+Imports: 
+    foreach,
+    stats,
+    ggplot2
+RoxygenNote: 6.1.1
