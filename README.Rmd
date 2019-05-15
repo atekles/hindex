@@ -17,37 +17,24 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of hindex is to ...
+This package provides functionality to simulate the development of h-index and h-alpha values of scientists who collaborate on writing papers and to visualize the simulated data. The effect of publishing, being cited, and strategic collaborating can be simulated. The implementation is based on the STATA ado [h-index](https://github.com/chrgan/h_index).
 
 ## Installation
 
-You can install the released version of hindex from [CRAN](https://CRAN.R-project.org) with:
+You can install the released version of hindex from [GitHub](https://github.com) using the devtools package:
 
 ``` r
-install.packages("hindex")
+# if devtools is not installed yet:
+install.packages("devtools")
+
+devtools::install_github("hindex")
 ```
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
-
 ```{r example}
 library(hindex)
-## basic example code
+simdata <- simulate_hindex(runs = 5, n = 200, periods = 20, coauthors = 3, distr_initial_papers = 'poisson', dpapers_pois_lambda = 10, distr_citations = 'poisson', dcitations_mean = 5, dcitations_peak = 3, alpha_share = .33)
+plot_hsim(simdata, plot_hindex = TRUE)
+plot_hsim(simdata, plot_halpha = TRUE, group_boundaries = list(c(0, 7), c(7.1, Inf)), plot_group_diffs = TRUE)
 ```
-
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
-
-```{r cars}
-summary(cars)
-```
-
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date.
-
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
-```
-
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub!
