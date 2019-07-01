@@ -12,8 +12,8 @@ Authors@R: c(
     person(given = "Christian", 
            family = "Ganser", 
            role = "ctb"))
-Description: H-index is a bibliometric indicator. This package provides
-  functions to simulate how this indicator may develop over time for 
+Description: H-index and h-alpha are a bibliometric indicators. This package 
+  provides functions to simulate how these indicators may develop over time for
   a given set of researchers and to visualize the simulation data. 
   The implementation is based on the 'STATA' ado h-index. 
 License: MIT + file LICENSE

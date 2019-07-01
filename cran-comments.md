@@ -1,8 +1,9 @@
 This is the first submission of the package. 
 
 ## Test environments
-* local ubuntu 18.04, R 3.4.4
-* win-builder (devel and release)
+* Local ubuntu 18.04, R 3.4.4
+* Winbuilder (devel and release)
+* R-hub
 
 ## R CMD check --as-cran results
 
@@ -14,8 +15,11 @@ There was 1 NOTE:
   Maintainer: ‘Alexander Tekles <alexander.tekles@soziologie.uni-muenchen.de>’
 
   New submission
-
-This is the first submission of the package. 
+  
+  Possibly mis-spelled words in DESCRIPTION:
+    bibliometric (16:40)
+    
+This is the first submission of the package. 'bibliometric' has been double-checked to be spelled correctly.
 
 ## Downstream dependencies
 
