@@ -47,6 +47,7 @@ A ggplot object (\code{\link[ggplot2]{ggplot}}).
 Plot the result of a simulation computed by simulate_hindex.
 }
 \examples{
+set.seed(123)
 simdata <- simulate_hindex(runs = 2, n = 20, periods = 3)
 plot_hsim(simdata, plot_hindex = TRUE, plot_halpha = TRUE)
 }

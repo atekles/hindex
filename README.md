@@ -10,7 +10,13 @@ This package provides functionality to simulate the development of h-index and h
 Installation
 ------------
 
-You can install the released version of hindex from [GitHub](https://github.com) using the devtools package:
+Install the package from CRAN:
+
+``` r
+install.packages('hindex')
+```
+
+Install the latest version from [GitHub](https://github.com) using the devtools package:
 
 ``` r
 # if devtools is not installed yet:

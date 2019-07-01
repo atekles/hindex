@@ -133,8 +133,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       # determine author teams
       if (diligence_share != 1) {
 
-        diligence <- diligence_corr * hValues[['period-1']] +
-          sqrt(1 - diligence_corr ^ 2) * stats::rnorm(length(hValues[['period-1']]))
+        diligence <- diligence_corr * hValues[['period-0']] +
+          sqrt(1 - diligence_corr ^ 2) * stats::rnorm(length(hValues[['period-0']]))
         activeScientists <-
           which(diligence > stats::quantile(diligence,
                                      prob = c(1 - diligence_share)))
@@ -307,8 +307,10 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                     length(which(citations >= rank(-citations, ties.method = 'first')))
                   }
       )
-      # order by scientist
-      hValues[[paste('period-', currentPeriod, sep = '')]] <- newHs$x[order(newHs$Group.1)]
+      # store new h-index values
+      periodLabel <- paste('period-', currentPeriod, sep = '')
+      hValues[[periodLabel]] <- vector(mode = 'numeric', length = n)
+      hValues[[periodLabel]][newHs$Group.1] <- newHs$x
       rm(newHs)
 
       newHAlphas <- stats::aggregate(1:nrow(simulationData$papers),
@@ -320,8 +322,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                                  simulationData$papers[x, 'alpha']))  # alpha papers
                   }
       )
-      hAlphaValues[[paste('period-', currentPeriod, sep = '')]] <-
-        newHAlphas$x[order(newHAlphas$Group.1)]
+      hAlphaValues[[periodLabel]] <- vector(mode = 'numeric', length = n)
+      hAlphaValues[[periodLabel]][newHAlphas$Group.1] <- newHAlphas$x
       rm(newHAlphas)
 
     }

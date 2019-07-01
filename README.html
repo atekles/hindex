@@ -31,7 +31,9 @@ body {
 <!-- badges: end -->
 <p>This package provides functionality to simulate the development of h-index and h-alpha values of scientists who collaborate on writing papers and to visualize the simulated data. The effect of publishing, being cited, and strategic collaborating can be simulated. The implementation is based on the STATA ado <a href="https://github.com/chrgan/h_index">h-index</a>.</p>
 <h2 id="installation">Installation</h2>
-<p>You can install the released version of hindex from <a href="https://github.com">GitHub</a> using the devtools package:</p>
+<p>Install the package from CRAN:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">install.packages</span>(<span class="st">'hindex'</span>)</code></pre></div>
+<p>Install the latest version from <a href="https://github.com">GitHub</a> using the devtools package:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># if devtools is not installed yet:</span>
 <span class="kw">install.packages</span>(<span class="st">&quot;devtools&quot;</span>)
 
@@ -39,7 +41,7 @@ devtools<span class="op">::</span><span class="kw">install_github</span>(<span c
 <h2 id="example">Example</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(hindex)
 <span class="kw">set.seed</span>(<span class="dv">1234</span>)
-simdata &lt;-<span class="st"> </span><span class="kw">simulate_hindex</span>(<span class="dt">runs =</span> <span class="dv">5</span>, <span class="dt">n =</span> <span class="dv">200</span>, <span class="dt">periods =</span> <span class="dv">20</span>, <span class="dt">coauthors =</span> <span class="dv">3</span>, <span class="dt">distr_initial_papers =</span> <span class="st">'poisson'</span>, <span class="dt">dpapers_pois_lambda =</span> <span class="dv">10</span>, <span class="dt">distr_citations =</span> <span class="st">'poisson'</span>, <span class="dt">dcitations_mean =</span> <span class="dv">5</span>, <span class="dt">dcitations_peak =</span> <span class="dv">3</span>, <span class="dt">alpha_share =</span> .<span class="dv">33</span>)
+simdata &lt;-<span class="st"> </span><span class="kw">simulate_hindex</span>(<span class="dt">runs =</span> <span class="dv">5</span>, <span class="dt">n =</span> <span class="dv">200</span>, <span class="dt">periods =</span> <span class="dv">20</span>, <span class="dt">coauthors =</span> <span class="dv">3</span>, <span class="dt">distr_initial_papers =</span> <span class="st">'poisson'</span>, <span class="dt">dpapers_pois_lambda =</span> <span class="dv">10</span>, <span class="dt">distr_citations =</span> <span class="st">'poisson'</span>, <span class="dt">dcitations_mean =</span> <span class="dv">5</span>, <span class="dt">dcitations_peak =</span> <span class="dv">3</span>, <span class="dt">alpha_share =</span> <span class="fl">.33</span>)
 <span class="co">#&gt; run 1...</span>
 <span class="co">#&gt; run 2...</span>
 <span class="co">#&gt; run 3...</span>
