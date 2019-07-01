@@ -15,7 +15,7 @@ Authors@R: c(
 Description: H-index is a bibliometric indicator. This package provides
   functions to simulate how this indicator may develop over time for 
   a given set of researchers and to visualize the simulation data. 
-  The implementation is based on the STATA ado h-index. 
+  The implementation is based on the 'STATA' ado h-index. 
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
