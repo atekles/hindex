@@ -3,6 +3,8 @@ library(foreach)
 
 test_that("initialization", {
 
+  set.seed(12345)
+
   n <- 20
   dcitationsSpeed <- 2  # in common log log notation: beta
   dcitationsPeak <- 3 # t_peak, i.e. the age at which expected citations are max
@@ -57,9 +59,15 @@ test_that("initialization", {
             group_boundaries = c(3, 5))
   plot_hsim(simdata, plot_hindex = FALSE, plot_halpha = TRUE,
             group_boundaries = list(c(1, 3), c(4, 7), c(8, Inf)))
+  plot_hsim(simdata, plot_hindex = FALSE, plot_halpha = TRUE,
+            group_boundaries = list(c(1, 3), c(4, 7), c(8, Inf)),
+            exclude_group_boundaries = TRUE)
   plot_hsim(simdata, plot_halpha = TRUE,
             group_boundaries = c(5), plot_group_diffs = TRUE)
   plot_hsim(simdata, plot_hindex = TRUE,
             group_boundaries = list(c(0, 5), c(4, 9)), plot_group_diffs = TRUE)
+  plot_hsim(simdata, plot_halpha = TRUE,
+            group_boundaries = 'median', exclude_group_boundaries = TRUE,
+            plot_group_diffs = TRUE)
 
 })

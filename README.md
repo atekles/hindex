@@ -24,6 +24,7 @@ Example
 
 ``` r
 library(hindex)
+set.seed(1234)
 simdata <- simulate_hindex(runs = 5, n = 200, periods = 20, coauthors = 3, distr_initial_papers = 'poisson', dpapers_pois_lambda = 10, distr_citations = 'poisson', dcitations_mean = 5, dcitations_peak = 3, alpha_share = .33)
 #> run 1...
 #> run 2...
@@ -36,7 +37,13 @@ plot_hsim(simdata, plot_hindex = TRUE)
 <img src="man/figures/README-example-1.png" width="100%" />
 
 ``` r
-plot_hsim(simdata, plot_halpha = TRUE, group_boundaries = list(c(0, 7), c(7.1, Inf)), plot_group_diffs = TRUE)
+plot_hsim(simdata, plot_halpha = TRUE, group_boundaries = 'median', exclude_group_boundaries = TRUE, plot_group_diffs = TRUE)
 ```
 
 <img src="man/figures/README-example-2.png" width="100%" />
+
+``` r
+plot_hsim(simdata, plot_halpha = TRUE, group_boundaries = list(c(0, 7), c(8, Inf)), plot_group_diffs = TRUE)
+```
+
+<img src="man/figures/README-example-3.png" width="100%" />

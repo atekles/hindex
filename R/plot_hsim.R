@@ -12,15 +12,21 @@
 #' the groups for plotting the h-index/h-alpha values separately for each of
 #' these groups. The groups are defined based on the initial h-index of the
 #' agents. If a list is specified, each element must be a vector of length 2
-#' representing the lower and the upper bound for the initial h-index (the
-#' boundaries are included in the corresponding intervals).
+#' representing the lower and the upper bound for the initial h-index (if the
+#' boundaries are included in the corresponding intervals is specified by the
+#' exclude_group_boundaries parameter).
 #' If a vector of integers is specified, each element in group_boundaries
 #' separates two groups such that all agents with an inital h-index below
-#' this boundary (and equal to or above any lower boundary) are in the first
-#' group, and all agents with an initial h-index equal to or above this
-#' boundary (and below any higher boundary) are in the second group.
+#' this boundary (and equal to or above any lower boundary; if
+#' exclude_group_boundaries is set to TRUE, the initial h-index has to be
+#' above any lower boundary) are in the first group, and all agents with
+#' an initial h-index equal to or above this boundary (and below any higher
+#' boundary) are in the second group.
 #' @param plot_group_diffs If this parameter is specified, the difference
 #' between the groups that are specified by group_boundaries is plotted.
+#' @param exclude_group_boundaries If this parameter is set to TRUE, the
+#' scientists are grouped such that those scientists whose initial h-index
+#' is equal to a boundary are not included.
 #'
 #' @return A ggplot object (\code{\link[ggplot2]{ggplot}}).
 #'
@@ -28,10 +34,12 @@
 #' @importFrom foreach "%do%"
 #'
 #' @examples
+#' set.seed(123)
 #' simdata <- simulate_hindex(runs = 2, n = 20, periods = 3)
 #' plot_hsim(simdata, plot_hindex = TRUE, plot_halpha = TRUE)
 plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
                       group_boundaries = NULL,
+                      exclude_group_boundaries = FALSE,
                       plot_group_diffs = FALSE) {
 
   if (!plot_hindex & !plot_halpha) {
@@ -52,8 +60,9 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
   # groups -> initial h values (e.g. low vs high...)
   if (!is.null(group_boundaries)) {
-    # use vector for each group indicating lower and upper boundary
     if (typeof(group_boundaries) == 'list') {
+
+      # use vector for each group indicating lower and upper boundary
 
       groups <- length(group_boundaries)
 
@@ -75,6 +84,8 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
     } else if (typeof(group_boundaries) %in% c('double', 'integer')) {
 
+      # use numeric to indicate the threshold for determining groups
+
       group_boundaries_ordered <-
         unique(group_boundaries[order(group_boundaries)])
       groups <- length(group_boundaries_ordered) + 1
@@ -89,6 +100,18 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
              group_boundaries_ordered[currentGroup] - .Machine$double.eps))
         }
       })
+
+    } else if (typeof(group_boundaries) == 'character') {
+
+      # use function to determine the threshold between groups
+
+      if (group_boundaries == 'median') {
+        threshold <- stats::median(simdata$h[[1]][[1]])
+        groups <- 2
+        groupBoundariesOrdered <- list(c(0, threshold), c(threshold, Inf))
+      } else {
+        stop('function for determining groups not supported')
+      }
 
     } else {
       stop('if group_boundaries is specified,
@@ -121,11 +144,21 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
        if (groups > 1) {
          groupsScientists <- lapply(1:groups, function(currentGroup) {
-           currentScientists <- which(hRun[[1]] >=
-                                        groupBoundariesOrdered[[currentGroup]][1] &
-                   hRun[[1]] <= groupBoundariesOrdered[[currentGroup]][2])
-           if (length(currentScientists) <= 0) {
-             warning(paste('no scientist in group', currentGroup, sep = ' '))
+           # TODO
+           if (exclude_group_boundaries) {
+             currentScientists <- which(hRun[[1]] >
+                                          groupBoundariesOrdered[[currentGroup]][1] &
+                                          hRun[[1]] < groupBoundariesOrdered[[currentGroup]][2])
+             if (length(currentScientists) <= 0) {
+               warning(paste('no scientist in group', currentGroup, sep = ' '))
+             }
+           } else {
+             currentScientists <- which(hRun[[1]] >=
+                                          groupBoundariesOrdered[[currentGroup]][1] &
+                                          hRun[[1]] <= groupBoundariesOrdered[[currentGroup]][2])
+             if (length(currentScientists) <= 0) {
+               warning(paste('no scientist in group', currentGroup, sep = ' '))
+             }
            }
            return(currentScientists)
          })
@@ -178,12 +211,23 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
        if (groups > 1) {
          groupsScientists <- lapply(1:groups, function(currentGroup) {
-           currentScientists <- which(simdata$h[[hAlphaRunIndex]][[1]] >=
-                                        groupBoundariesOrdered[[currentGroup]][1] &
-                   simdata$h[[hAlphaRunIndex]][[1]] <=
-                     groupBoundariesOrdered[[currentGroup]][2])
-           if (length(currentScientists) <= 0) {
-             warning(paste('no scientist in group', currentGroup, sep = ' '))
+           # TODO
+           if (exclude_group_boundaries) {
+             currentScientists <- which(simdata$h[[hAlphaRunIndex]][[1]] >
+                                          groupBoundariesOrdered[[currentGroup]][1] &
+                                          simdata$h[[hAlphaRunIndex]][[1]] <
+                                          groupBoundariesOrdered[[currentGroup]][2])
+             if (length(currentScientists) <= 0) {
+               warning(paste('no scientist in group', currentGroup, sep = ' '))
+             }
+           } else {
+             currentScientists <- which(simdata$h[[hAlphaRunIndex]][[1]] >=
+                                          groupBoundariesOrdered[[currentGroup]][1] &
+                                          simdata$h[[hAlphaRunIndex]][[1]] <=
+                                          groupBoundariesOrdered[[currentGroup]][2])
+             if (length(currentScientists) <= 0) {
+               warning(paste('no scientist in group', currentGroup, sep = ' '))
+             }
            }
            return(currentScientists)
          })
@@ -243,20 +287,35 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
     labels <- vector(mode = 'character', length = groups)
     for (currentGroup in 1:groups) {
-      labels[currentGroup] <- eval(bquote(expression(
-        h[init] %in% group("[", list(
-          .(groupBoundariesOrdered[[currentGroup]][1]),
-          .(groupBoundariesOrdered[[currentGroup]][2])
-        ), ")")
-      )))
+      if (exclude_group_boundaries) {
+        labels[currentGroup] <- eval(bquote(expression(
+          h[init] %in% group("(", list(
+            .(groupBoundariesOrdered[[currentGroup]][1]),
+            .(groupBoundariesOrdered[[currentGroup]][2])
+          ), ")")
+        )))
+      } else {
+        labels[currentGroup] <- eval(bquote(expression(
+          h[init] %in% group("[", list(
+            .(groupBoundariesOrdered[[currentGroup]][1]),
+            .(groupBoundariesOrdered[[currentGroup]][2])
+          ), ")")
+        )))
+      }
     }
     if (typeof(group_boundaries) %in% c('double', 'integer')) {
       labels[1] <- eval(bquote(expression(
         h[init] < .(groupBoundariesOrdered[[1]][2])
       )))
-      labels[groups] <- eval(bquote(expression(
-        h[init] >= .(groupBoundariesOrdered[[groups]][1])
-      )))
+      if (exclude_group_boundaries) {
+        labels[groups] <- eval(bquote(expression(
+          h[init] > .(groupBoundariesOrdered[[groups]][1])
+        )))
+      } else {
+        labels[groups] <- eval(bquote(expression(
+          h[init] >= .(groupBoundariesOrdered[[groups]][1])
+        )))
+      }
     }
 
     if (plot_group_diffs) {

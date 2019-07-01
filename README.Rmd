@@ -34,7 +34,9 @@ devtools::install_github("atekles/hindex")
 
 ```{r example}
 library(hindex)
+set.seed(1234)
 simdata <- simulate_hindex(runs = 5, n = 200, periods = 20, coauthors = 3, distr_initial_papers = 'poisson', dpapers_pois_lambda = 10, distr_citations = 'poisson', dcitations_mean = 5, dcitations_peak = 3, alpha_share = .33)
 plot_hsim(simdata, plot_hindex = TRUE)
-plot_hsim(simdata, plot_halpha = TRUE, group_boundaries = list(c(0, 7), c(7.1, Inf)), plot_group_diffs = TRUE)
+plot_hsim(simdata, plot_halpha = TRUE, group_boundaries = 'median', exclude_group_boundaries = TRUE, plot_group_diffs = TRUE)
+plot_hsim(simdata, plot_halpha = TRUE, group_boundaries = list(c(0, 7), c(8, Inf)), plot_group_diffs = TRUE)
 ```

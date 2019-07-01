@@ -5,7 +5,8 @@
 \title{Plot the result of simulate_hindex}
 \usage{
 plot_hsim(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
-  group_boundaries = NULL, plot_group_diffs = FALSE)
+  group_boundaries = NULL, exclude_group_boundaries = FALSE,
+  plot_group_diffs = FALSE)
 }
 \arguments{
 \item{simdata}{The result of a simulation returned
@@ -21,13 +22,20 @@ plotted.}
 the groups for plotting the h-index/h-alpha values separately for each of
 these groups. The groups are defined based on the initial h-index of the
 agents. If a list is specified, each element must be a vector of length 2
-representing the lower and the upper bound for the initial h-index (the
-boundaries are included in the corresponding intervals).
+representing the lower and the upper bound for the initial h-index (if the
+boundaries are included in the corresponding intervals is specified by the
+exclude_group_boundaries parameter).
 If a vector of integers is specified, each element in group_boundaries
 separates two groups such that all agents with an inital h-index below
-this boundary (and equal to or above any lower boundary) are in the first
-group, and all agents with an initial h-index equal to or above this
-boundary (and below any higher boundary) are in the second group.}
+this boundary (and equal to or above any lower boundary; if
+exclude_group_boundaries is set to TRUE, the initial h-index has to be
+above any lower boundary) are in the first group, and all agents with
+an initial h-index equal to or above this boundary (and below any higher
+boundary) are in the second group.}
+
+\item{exclude_group_boundaries}{If this parameter is set to TRUE, the
+scientists are grouped such that those scientists whose initial h-index
+is equal to a boundary are not included.}
 
 \item{plot_group_diffs}{If this parameter is specified, the difference
 between the groups that are specified by group_boundaries is plotted.}

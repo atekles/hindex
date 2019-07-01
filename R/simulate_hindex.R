@@ -65,6 +65,7 @@
 #' @importFrom foreach "%do%"
 #'
 #' @examples
+#' set.seed(123)
 #' simdata <- simulate_hindex(runs = 2, n = 20, periods = 3)
 #' plot_hsim(simdata, plot_hindex = TRUE)
 simulate_hindex <- function(runs = 1, n = 100, periods = 20,
@@ -118,9 +119,9 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
        alpha_share = alpha_share)
 
     hAlphaValues <- list(simulationData$scientists$hAlpha0)
-    names(hAlphaValues) <- c('period-1')
+    names(hAlphaValues) <- c('period-0')
     hValues <- list(simulationData$scientists$h0)
-    names(hValues) <- c('period-1')
+    names(hValues) <- c('period-0')
     nextPaperId <- nrow(simulationData$papers) + 1
 
     ## iterate over periods
