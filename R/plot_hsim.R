@@ -16,7 +16,7 @@
 #' boundaries are included in the corresponding intervals is specified by the
 #' exclude_group_boundaries parameter).
 #' If a vector of integers is specified, each element in group_boundaries
-#' separates two groups such that all agents with an inital h-index below
+#' separates two groups such that all agents with an initial h-index below
 #' this boundary (and equal to or above any lower boundary; if
 #' exclude_group_boundaries is set to TRUE, the initial h-index has to be
 #' above any lower boundary) are in the first group, and all agents with

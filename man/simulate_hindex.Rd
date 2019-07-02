@@ -59,6 +59,8 @@ value.}
 \item{strategic_teams}{If this parameter is set to TRUE, agents with high
 h-index avoid co-authorships with agents who have equal or higher h-index
 values (they strategically select co-authors to improve their h-alpha index).
+This is implemented by assigning the agents with the highest h-index values
+to separate teams and randomly assigning the other agents to the teams.
 Otherwise, the collaborating agents are assigned to co-authorships at random.}
 
 \item{diligence_share}{The share of agents publishing in each period.}
@@ -79,11 +81,13 @@ current h-index values of its authors. Without this option, the alpha
 author is determined when the paper is written and held constant from then on.}
 
 \item{boost}{If this parameter is set to TRUE, papers of agents with a higher
-h-index are cited more frequently than papers of agents with lower h-index.}
+h-index are cited more frequently than papers of agents with lower h-index.
+For each team, this effect is based on the team's co-author with the
+highest h-index within this team.}
 
 \item{boost_size}{Magnitude of the boost effect. For every additional h point
-of an agent's paper who has the highest h-index among all of the paper's
-co-authors, citations are increased by boost_size, rounded to the next
+of a paper's co-author who has the highest h-index among all of the paper's
+co-authors, citations of the paper are increased by boost_size, rounded to the next
 integer.}
 
 \item{alpha_share}{The share of previously published papers where the
