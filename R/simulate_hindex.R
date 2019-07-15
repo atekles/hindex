@@ -143,7 +143,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
           which(diligence > stats::quantile(diligence,
                                      prob = c(1 - diligence_share)))
 
-        nTeams <- floor(length(activeScientists) / coauthors)
+        nTeams <- round(length(activeScientists) / coauthors)
 
         if (strategic_teams) {
 
@@ -167,7 +167,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
       } else {
 
-        nTeams <- floor(nrow(simulationData$scientists) / coauthors)
+        nTeams <- round(nrow(simulationData$scientists) / coauthors)
 
         if (strategic_teams) {
 
