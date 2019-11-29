@@ -7,6 +7,7 @@
 #' @param runs Number of times the simulation is repeated.
 #' @param n Number of agents acting in each simulation.
 #' @param periods Number of periods the agents collaborate across in each period.
+#' @param init_type Type of the initial setup. May be "fixage" or "varage"
 #' @param distr_initial_papers Distribution of the papers the scientists have
 #' already published at the start of the simulation. Currently, the poisson
 #' distribution ("poisson") and the negative binomial distribution ("nbinomial")
@@ -73,9 +74,11 @@
 #' simdata <- simulate_hindex(runs = 2, n = 20, periods = 3)
 #' plot_hsim(simdata, plot_hindex = TRUE)
 simulate_hindex <- function(runs = 1, n = 100, periods = 20,
+                            init_type = 'fixage',
                             distr_initial_papers = 'poisson',
                             dpapers_pois_lambda = 2,
                             dpapers_nbinom_dispersion = 1.1, dpapers_nbinom_mean = 2,
+                            init_productivity = 80,
                             distr_citations = 'poisson', dcitations_speed = 2,
                             dcitations_peak = 3, dcitations_mean = 2,
                             dcitations_dispersion = 1.1,
@@ -105,6 +108,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                             (dcitations_speed - 1))) /
                         ((1 + (dcitations_peak / dcitations_alpha) ^
                             dcitations_speed) ^ 2))
+  productivity <- exp(2.466973) * (init_productivity / 100) ^ 2.47832
 
   hValuesRuns <- list()
   hAlphaValuesRuns <- list()
@@ -343,7 +347,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
 }
 
-setup_simulation <- function(n, boost, boost_size = 0,
+setup_simulation <- function(n, init_type, boost, boost_size = 0,
                              distr_initial_papers, distr_citations,
                              dcitations_loglog_factor, dcitations_alpha,
                              dcitations_speed, dcitations_dispersion,
