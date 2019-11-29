@@ -76,6 +76,7 @@
 simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                             init_type = 'fixage',
                             distr_initial_papers = 'poisson',
+                            max_age_scientists = 5,
                             dpapers_pois_lambda = 2,
                             dpapers_nbinom_dispersion = 1.1, dpapers_nbinom_mean = 2,
                             init_productivity = 80,
@@ -118,7 +119,9 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
     message(paste('run ', currentRun, '...', sep = ''))
 
     simulationData <- setup_simulation(n = n, boost = boost,
-       boost_size = boost_size, distr_initial_papers = distr_initial_papers,
+       boost_size = boost_size, init_type = init_type,
+       distr_initial_papers = distr_initial_papers,
+       max_age_scientists = max_age_scientists, productivity = productivity,
        distr_citations = distr_citations, dcitations_alpha = dcitations_alpha,
        dcitations_dispersion = dcitations_dispersion,
        dcitations_loglog_factor = dcitations_loglog_factor,
@@ -348,7 +351,9 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 }
 
 setup_simulation <- function(n, init_type, boost, boost_size = 0,
-                             distr_initial_papers, distr_citations,
+                             init_type, distr_initial_papers,
+                             max_age_scientists,
+                             productivity, distr_citations,
                              dcitations_loglog_factor, dcitations_alpha,
                              dcitations_speed, dcitations_dispersion,
                              dpapers_pois_lambda = NULL,
@@ -359,16 +364,43 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
 
   # create n scientists and their papers
 
-  if (distr_initial_papers == 'uniform') {
-    stop('uniform paper distribution not supported any more')
-    # noPapers <- sample(dpapersUnifMin:dpapersUnifMax, n, replace = TRUE)
-  } else if (distr_initial_papers == 'poisson') {
-    noPapers <- stats::rpois(n = n, lambda = dpapers_pois_lambda)
-  } else if (distr_initial_papers == 'nbinomial') {
-    noPapers <-
-      stats::rnbinom(n = n, size = dpapers_nbinom_dispersion, mu = dpapers_nbinom_mean)
+  if (init_type == 'fixage') {
+
+    # in stata: init_type 1
+
+    if (distr_initial_papers == 'uniform') {
+      stop('uniform paper distribution not supported any more')
+      # noPapers <- sample(dpapersUnifMin:dpapersUnifMax, n, replace = TRUE)
+    } else if (distr_initial_papers == 'poisson') {
+      noPapers <- stats::rpois(n = n, lambda = dpapers_pois_lambda)
+    } else if (distr_initial_papers == 'nbinomial') {
+      # in R:
+      #   -> size is the number of successful trials (dispersion parameter)
+      #   -> mu is the mean
+      #   -> no need to calculate the probability for single trials or number
+      #       of failures (as in Stata)
+      # in Stata: rnbinom(n, p)
+      #   -> if n is an integer, this is the number of failures before the nth success
+      #   -> if n is not an integer?
+      #   -> p is the probability of success for a single trial
+      noPapers <-
+        stats::rnbinom(n = n, size = dpapers_nbinom_dispersion, mu = dpapers_nbinom_mean)
+    } else {
+      stop('paper distribution not supported')
+    }
+
+  } else if (init_type == 'varage') {
+
+    # TODO next
+    # create productivity for each scientist
+    scientists_prod <- runif(n) ^ productivity
+    # based on this productivity: decide how many papers
+    noPapers <- vapply(scientists_prod, function(current_prod) {
+      length(which(runif(max_age_scientists) < current_prod))
+    }, FUN.VALUE = integer(1))
+
   } else {
-    stop('paper distribution not supported')
+    stop('init_type not supported')
   }
 
   zeroPaperScientists <- list() # scientists may have zero papers at start;
@@ -376,7 +408,11 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
   initialScientist <- 1
 
   # calculate distribution parameters
-  maxPaperAge <- 5
+  if (init_type == 'fixage') {
+    maxPaperAge <- 5
+  } else {
+    maxPaperAge <- max_age_scientists
+  }
   currentPaperAge <- 1
   if (distr_citations == 'uniform') {
     stop('uniform citation distribution not supported')
@@ -414,6 +450,8 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
   papersOlderEq <- lapply(1:maxPaperAge, function(currentPaperAge) {
     which(papers[, 2] >= currentPaperAge)
   })
+
+  # assign citations to papers
 
   if (distr_citations == 'poisson') {
 
