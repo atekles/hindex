@@ -74,6 +74,7 @@
 #' simdata <- simulate_hindex(runs = 2, n = 20, periods = 3)
 #' plot_hsim(simdata, plot_hindex = TRUE)
 simulate_hindex <- function(runs = 1, n = 100, periods = 20,
+                            subgroups_distr = 1,
                             init_type = 'fixage',
                             distr_initial_papers = 'poisson',
                             max_age_scientists = 5,
@@ -119,8 +120,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
     message(paste('run ', currentRun, '...', sep = ''))
 
     simulationData <- setup_simulation(n = n, boost = boost,
-       boost_size = boost_size, init_type = init_type,
-       distr_initial_papers = distr_initial_papers,
+       boost_size = boost_size, subgroups_distr = subgroups_distr,
+       init_type = init_type, distr_initial_papers = distr_initial_papers,
        max_age_scientists = max_age_scientists, productivity = productivity,
        distr_citations = distr_citations, dcitations_alpha = dcitations_alpha,
        dcitations_dispersion = dcitations_dispersion,
@@ -351,6 +352,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 }
 
 setup_simulation <- function(n, init_type, boost, boost_size = 0,
+                             subgroups_distr,
                              init_type, distr_initial_papers,
                              max_age_scientists,
                              productivity, distr_citations,
@@ -359,6 +361,10 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
                              dpapers_pois_lambda = NULL,
                              dpapers_nbinom_dispersion = NULL, dpapers_nbinom_mean = NULL,
                              alpha_share) {
+
+  if (subgroups_distr < 0 || subgroups_distr > 1) {
+    stop('invalid argument for subgroups_distr; must be >0 and <=1')
+  }
 
   ## initialization
 
@@ -391,7 +397,7 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
 
   } else if (init_type == 'varage') {
 
-    # TODO next
+    # TODO test
     # create productivity for each scientist
     scientists_prod <- runif(n) ^ productivity
     # based on this productivity: decide how many papers
@@ -548,6 +554,18 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
   scientists$hAlpha0[hAlphas$scientist] <- hAlphas$hAlpha0
   #   -> possible because scientists id corresponds to their index in scientists data
   rm(hAlphas)
+
+  # determine subgroups
+
+  scientists$subgroups <- vector(mode = 'integer', length = n)
+  scientists$subgroups[] <- 1
+  if (subgroups_distr < 1) {
+    subgroup_break <- round(subgroups_distr * n)
+    if (subgroup_break >= 1 && subgroup_break < n) {
+      scientists$subgroups[1:subgroup_break] <- 1
+      scientists$subgroups[(subgroup_break + 1):n] <- 2
+    }
+  }
 
   return(list(papers = data.frame(papers), scientists = data.frame(scientists)))
 
