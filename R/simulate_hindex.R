@@ -74,7 +74,7 @@
 #' simdata <- simulate_hindex(runs = 2, n = 20, periods = 3)
 #' plot_hsim(simdata, plot_hindex = TRUE)
 simulate_hindex <- function(runs = 1, n = 100, periods = 20,
-                            subgroups_distr = 1,
+                            subgroups_distr = 1, subgroup_advantage = 1,
                             init_type = 'fixage',
                             distr_initial_papers = 'poisson',
                             max_age_scientists = 5,
@@ -143,7 +143,6 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       simulationData$papers$age <- simulationData$papers$age + 1
 
       # determine author teams
-      # TODO next: consider subgroups
 
       if (init_type == 'fixage') {
 
@@ -167,27 +166,46 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
       nTeams <- round(length(activeScientists) / coauthors)
 
+      # indices of active scientists in subgroup 1 in simulationData$scientists
+      # TODO test
+      activeScientistsGroup1 <-
+        activeScientists[
+          which(simulationData$scientists$subgroup[activeScientists] == 1)]
+      activeScientistsGroup2 <-
+        activeScientists[
+          which(simulationData$scientists$subgroup[activeScientists] == 2)]
+
+      authorsTeams <- vector(mode = 'numeric',
+                             length = nrow(simulationData$scientists))
+
       if (strategic_teams) {
 
-        scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientists])
+        scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup1])
         #   scientistsHOrder: the index of scientists in the vector of active
         #           scientists (not all scientists!!!), starting with the one
         #           with the highest h index, then the one with the 2nd highest
         #           h index etc.
-        authorsTeams <- vector(mode = 'numeric',
-                               length = nrow(simulationData$scientists))
-        authorsTeams[activeScientists][scientistsHOrder[1:nTeams]] <- 1:nTeams
+        authorsTeams[activeScientistsGroup1][scientistsHOrder[1:nTeams]] <- 1:nTeams
         #   first select all active scientists, because the indices in scientistsHOrder
         #   correspond to this selection of scientists
-        authorsTeams[activeScientists][scientistsHOrder[(nTeams + 1):length(activeScientists)]] <-
-          sample(nTeams, length(activeScientists) - nTeams, replace = TRUE)
+        authorsTeams[activeScientistsGroup1][
+          scientistsHOrder[(nTeams + 1):length(activeScientistsGroup1)]] <-
+          sample(nTeams, length(activeScientistsGroup1) - nTeams, replace = TRUE)
+
+        # same for scientists in subgroup 2; if no subgroup2,
+        # the following lines don't change anything
+        scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup2])
+        authorsTeams[activeScientistsGroup2][scientistsHOrder[1:nTeams]] <- 1:nTeams
+        authorsTeams[activeScientistsGroup2][
+          scientistsHOrder[(nTeams + 1):length(activeScientistsGroup2)]] <-
+          sample(nTeams, length(activeScientistsGroup2) - nTeams, replace = TRUE)
 
       } else {
 
-        authorsTeams <- vector(mode = 'integer',
-                               length = nrow(simulationData$scientists))
-        authorsTeams[activeScientists] <-
-          sample(nTeams, length(activeScientists), replace = TRUE)
+        authorsTeams[activeScientistsGroup1] <-
+          sample(nTeams, length(activeScientistsGroup1), replace = TRUE)
+        authorsTeams[activeScientistsGroup2] <-
+          sample(nTeams, length(activeScientistsGroup2), replace = TRUE)
 
       }
 
@@ -224,11 +242,14 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       simulationData$papers <- rbind(simulationData$papers, newPapers)
 
       # update alpha authors if specified
+      # TODO do this before adding new papers?
+      # TODO optimization possible?
       cfun <- function(a, b) {return(NULL)}
       if (update_alpha_authors) {
         currentPaper <- 0
         foreach::foreach(currentPaper = unique(simulationData$papers$paper),
                                          .combine = 'cfun') %do% {
+
           currentScientists <- simulationData$papers$scientist[
             simulationData$papers$paper == currentPaper]
           maxH <- max(hValues[[length(hValues)]][currentScientists])
@@ -238,48 +259,61 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
           scientistsMatches <-
             match(currentScientists, simulationData$papers$scientist[paperIndices])
           simulationData$papers$alpha[paperIndices][scientistsMatches] <- alphaAuthors
+          if (boost) {
+            # TODO review + test
+            simulationData$papers$merton[paperIndices][scientistsMatches] <-
+              round(boost_size * maxH)
+          }
 
           return(NULL)
+
         }
       }
 
       # get citations for all papers (not just the new ones...), considering their age
+
       if (distr_citations == 'uniform') {
         stop('uniform citation distributino not supported any more')
         # newPapersCitations <-
           # sample(dcitationsUnifMin:dcitationsUnifMax, length(teams), replace = TRUE)
       } else if (distr_citations == 'poisson') {
 
-        simulationData$papers$citations <- apply(simulationData$papers, MARGIN = 1,
-                                          FUN = function(currentPaper) {
-          lambda <- dcitations_loglog_factor *
-            (((dcitations_speed / dcitations_alpha) * ((currentPaper['age'] / dcitations_alpha) ^
+        currentLambdas <- dcitations_loglog_factor *
+          (((dcitations_speed / dcitations_alpha) * ((simulationData$papers$age / dcitations_alpha) ^
                                                        (dcitations_speed - 1))) /
-               ((1 + (currentPaper['age'] / dcitations_alpha) ^ dcitations_speed) ^ 2))
-          return(currentPaper['citations'] + stats::rpois(1, lambda))
-        })
+             ((1 + (simulationData$papers$age / dcitations_alpha) ^ dcitations_speed) ^ 2))
+        newCitations <- stats::rpois(length(currentLambdas), currentLambdas)
 
       } else if (distr_citations == 'nbinomial') {
 
-        simulationData$papers$citations <- apply(simulationData$papers, MARGIN = 1,
-                                          FUN = function(currentPaper) {
-          currentExp <- dcitations_loglog_factor *
-            (((dcitations_speed / dcitations_alpha) * ((currentPaper['age'] / dcitations_alpha) ^
+        currentExps <- dcitations_loglog_factor *
+          (((dcitations_speed / dcitations_alpha) * ((simulationData$papers$age / dcitations_alpha) ^
                                                        (dcitations_speed - 1))) /
-               ((1 + (currentPaper['age'] / dcitations_alpha) ^ dcitations_speed) ^ 2))
-          currentP <- currentExp / (currentExp * dcitations_dispersion)
-          currentN <- (currentExp * currentP) / (1 - currentP)
-          return(currentPaper['citations'] + stats::rnbinom(1, size = currentN, prob = currentP))
-        })
+             ((1 + (simulationData$papers$age / dcitations_alpha) ^ dcitations_speed) ^ 2))
+        currentPs <- currentExps / (currentExps * dcitations_dispersion)
+        currentNs <- (currentExps * currentPs) / (1 - currentPs)
+        newCitations <- stats::rnbinom(length(currentExps), size = currentNs, prob = currentPs)
 
       } else {
         stop('citation distribution not supported')
       }
 
+      # add subgroup advantage
+      group2Papers <- simulationData$papers$scientist %in%
+        simulationData$scientists$scientist[simulationData$scientists$subgroup == 2]
+      newCitations[group2Papers] <- newCitations[group2Papers] * subgroup_advantage
+
+      # add new citations to the papers
+      simulationData$papers$citations <-
+        simulationData$papers$citations + newCitations
+
+      # add merton bonus if specified
       if (boost) {
         simulationData$papers$citations <-
           simulationData$papers$citations + simulationData$papers$merton
       }
+
+      # TODO next
 
       # selfcitations
       if (selfcitations) {
@@ -559,13 +593,13 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
 
   # determine subgroups
 
-  scientists$subgroups <- vector(mode = 'integer', length = n)
-  scientists$subgroups[] <- 1
+  scientists$subgroup <- vector(mode = 'integer', length = n)
+  scientists$subgroup[] <- 1
   if (subgroups_distr < 1) {
     subgroup_break <- round(subgroups_distr * n)
     if (subgroup_break >= 1 && subgroup_break < n) {
-      scientists$subgroups[1:subgroup_break] <- 1
-      scientists$subgroups[(subgroup_break + 1):n] <- 2
+      scientists$subgroup[1:subgroup_break] <- 1
+      scientists$subgroup[(subgroup_break + 1):n] <- 2
     }
   }
 
