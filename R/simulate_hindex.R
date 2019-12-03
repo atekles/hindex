@@ -143,57 +143,55 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       simulationData$papers$age <- simulationData$papers$age + 1
 
       # determine author teams
-      if (diligence_share != 1) {
+      # TODO next: consider subgroups
 
-        diligence <- diligence_corr * hValues[['period-0']] +
-          sqrt(1 - diligence_corr ^ 2) * stats::rnorm(length(hValues[['period-0']]))
-        activeScientists <-
-          which(diligence > stats::quantile(diligence,
-                                     prob = c(1 - diligence_share)))
+      if (init_type == 'fixage') {
 
-        nTeams <- round(length(activeScientists) / coauthors)
-
-        if (strategic_teams) {
-
-          scientistsHOrder <- order(-hValues[[length(hValues)]])
-          authorsTeams <- vector(mode = 'numeric',
-                                 length = nrow(simulationData$scientists))
-          authorsTeams[scientistsHOrder[activeScientists][1:nTeams]] <- 1:nTeams
-          authorsTeams[scientistsHOrder[activeScientists][(nTeams + 1):length(activeScientists)]] <-
-            sample(nTeams, length(activeScientists) - nTeams, replace = TRUE)
-
+        if (diligence_share != 1) {
+          diligence <- diligence_corr * hValues[['period-0']] +
+            sqrt(1 - diligence_corr ^ 2) * stats::rnorm(length(hValues[['period-0']]))
+          activeScientists <-
+            which(diligence > stats::quantile(diligence,
+                                              prob = c(1 - diligence_share)))  # TODO (1 - diligence_share) instead of c(1 - diligence_share) ???
         } else {
-
-          authorsTeams <- vector(mode = 'integer',
-                                 length = nrow(simulationData$scientists))
-          authorsTeams[activeScientists] <-
-            sample(nTeams, length(activeScientists), replace = TRUE)
-
+          activeScientists <- 1:nrow(simulationData$scientists)
         }
 
-        # 0-elements in authorsTeams correspond to authors not active in this period
+      } else if (init_type = 'varage') {
+
+        activeScientists <-
+          which(simulationData$scientists$productivity >
+                  runif(nrow(simulationData$scientists)))
+
+      }
+
+      nTeams <- round(length(activeScientists) / coauthors)
+
+      if (strategic_teams) {
+
+        scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientists])
+        #   scientistsHOrder: the index of scientists in the vector of active
+        #           scientists (not all scientists!!!), starting with the one
+        #           with the highest h index, then the one with the 2nd highest
+        #           h index etc.
+        authorsTeams <- vector(mode = 'numeric',
+                               length = nrow(simulationData$scientists))
+        authorsTeams[activeScientists][scientistsHOrder[1:nTeams]] <- 1:nTeams
+        #   first select all active scientists, because the indices in scientistsHOrder
+        #   correspond to this selection of scientists
+        authorsTeams[activeScientists][scientistsHOrder[(nTeams + 1):length(activeScientists)]] <-
+          sample(nTeams, length(activeScientists) - nTeams, replace = TRUE)
 
       } else {
 
-        nTeams <- round(nrow(simulationData$scientists) / coauthors)
-
-        if (strategic_teams) {
-
-          scientistsHOrder <- order(-hValues[[length(hValues)]])
-          authorsTeams <- vector(mode = 'numeric',
-                                 length = nrow(simulationData$scientists))
-          authorsTeams[scientistsHOrder[1:nTeams]] <- 1:nTeams
-          authorsTeams[scientistsHOrder[(nTeams + 1):nrow(simulationData$scientists)]] <-
-            sample(nTeams, nrow(simulationData$scientists) - nTeams, replace = TRUE)
-
-        } else {
-
-          authorsTeams <-
-            sample(nTeams, nrow(simulationData$scientists), replace = TRUE)
-
-        }
+        authorsTeams <- vector(mode = 'integer',
+                               length = nrow(simulationData$scientists))
+        authorsTeams[activeScientists] <-
+          sample(nTeams, length(activeScientists), replace = TRUE)
 
       }
+
+      # 0-elements in authorsTeams correspond to authors not active in this period
 
       # add paper for each team, intial age = 1
       newPaperIds <- nextPaperId:(nextPaperId + nTeams)
@@ -554,6 +552,10 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
   scientists$hAlpha0[hAlphas$scientist] <- hAlphas$hAlpha0
   #   -> possible because scientists id corresponds to their index in scientists data
   rm(hAlphas)
+
+  # add productivity of scientists
+
+  scientists$productivity[scientists$scientist] <- scientists_prod
 
   # determine subgroups
 
