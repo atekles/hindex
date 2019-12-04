@@ -23,7 +23,11 @@ test_that("initialization", {
                             dcitationsSpeed) ^ 2))
 
   simulationData <- setup_simulation(n = n, boost = FALSE,
+                                     subgroups_distr = 1,
+                                     init_type = 'fixage',
                                      distr_initial_papers = 'poisson',
+                                     max_age_scientists = 5,
+                                     productivity = exp(2.466973) * (80 / 100) ^ 2.47832,
                                      distr_citations = 'poisson',
                                      dcitations_alpha = dcitationsAlpha,
                                      dcitations_dispersion = dcitationsDispersion,
@@ -35,7 +39,7 @@ test_that("initialization", {
   expect_equal(length(simulationData), 2)
   expect_equal(names(simulationData), c('papers', 'scientists'))
   expect_equal(nrow(simulationData$scientists), n)
-  expect_equal(names(simulationData$scientists), c('scientist', 'h0', 'hAlpha0'))
+  expect_equal(names(simulationData$scientists), c('scientist', 'h0', 'hAlpha0', 'subgroup'))
   expect_equal(length(as.list(simulationData$scientists$h0)), n)
   expect_equal(length(as.list(simulationData$scientists$hAlpha0)), n)
   expect_equal(nrow(simulationData$papers), max(simulationData$papers$paper))

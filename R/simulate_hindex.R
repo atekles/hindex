@@ -96,6 +96,9 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
     stop('average teamsize has to be greater than 1')
   }
 
+  # TODO check if parameter specification is valid
+
+  # TODO still relevant?
   # merton effect
   # papers get additional citations proportional to the highest h value
   # among its authors (in previous period); currently the merton effect only
@@ -156,11 +159,11 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
           activeScientists <- 1:nrow(simulationData$scientists)
         }
 
-      } else if (init_type = 'varage') {
+      } else if (init_type == 'varage') {
 
         activeScientists <-
           which(simulationData$scientists$productivity >
-                  runif(nrow(simulationData$scientists)))
+                  stats::runif(nrow(simulationData$scientists)))
 
       }
 
@@ -313,29 +316,43 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
           simulationData$papers$citations + simulationData$papers$merton
       }
 
-      # TODO next
-
       # selfcitations
       if (selfcitations) {
 
         # all scientists with a paper written in current period
-        papersActiveScientists <- which(simulationData$papers$scientist %in% newPapers[ , 'scientist'])
+        papersActiveScientists <-
+          which(simulationData$papers$scientist %in% newPapers[ , 'scientist'])
 
-        paperIndex <- 0
-        selfcitedActivePapers <- foreach::foreach(paperIndex = papersActiveScientists,
-                                            .combine = 'c') %do% {
-          scientistCurrentH <- hValues[[length(hValues)]][
-            simulationData$papers$scientist[paperIndex]]
-          if (simulationData$papers$citations[paperIndex] == scientistCurrentH - 1
-              || simulationData$papers$citations[paperIndex] == scientistCurrentH - 2) {
-            return(TRUE)
-          } else {
-            return(FALSE)
-          }
+        if (TRUE) {
+          papersActiveScientistsH <-
+            hValues[[length(hValues)]][
+              simulationData$papers$scientist[papersActiveScientists]]
+
+          selfcitedActivePapers <-
+            simulationData$papers$citations[papersActiveScientists] ==
+            papersActiveScientistsH - 1 |
+            simulationData$papers$citations[papersActiveScientists] ==
+            papersActiveScientistsH - 2
+        } else if (testOld) {
+          # TODO old version; remove if tested
+          # TODO expected to produce the same results as in testNew
+          paperIndex <- 0
+          selfcitedActivePapers <- foreach::foreach(paperIndex = papersActiveScientists,
+                                                    .combine = 'c') %do% {
+                                                      scientistCurrentH <- hValues[[length(hValues)]][
+                                                        simulationData$papers$scientist[paperIndex]]
+                                                      if (simulationData$papers$citations[paperIndex] == scientistCurrentH - 1
+                                                          || simulationData$papers$citations[paperIndex] == scientistCurrentH - 2) {
+                                                        return(TRUE)
+                                                      } else {
+                                                        return(FALSE)
+                                                      }
+                                                    }
         }
 
+
         # get all rows of the selfcited papers
-        # (not just the rows corresponding to the selfcitING authors)
+        # (not just the rows corresponding to the selfciting authors)
         selfcitedPapersIndices <- simulationData$papers$paper %in%
           simulationData$papers$paper[papersActiveScientists[selfcitedActivePapers]]
 
@@ -383,7 +400,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
 }
 
-setup_simulation <- function(n, init_type, boost, boost_size = 0,
+setup_simulation <- function(n, boost, boost_size = 0,
                              subgroups_distr,
                              init_type, distr_initial_papers,
                              max_age_scientists,
@@ -431,10 +448,10 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
 
     # TODO test
     # create productivity for each scientist
-    scientists_prod <- runif(n) ^ productivity
+    scientists_prod <- stats::runif(n) ^ productivity
     # based on this productivity: decide how many papers
     noPapers <- vapply(scientists_prod, function(current_prod) {
-      length(which(runif(max_age_scientists) < current_prod))
+      length(which(stats::runif(max_age_scientists) < current_prod))
     }, FUN.VALUE = integer(1))
 
   } else {
@@ -588,8 +605,9 @@ setup_simulation <- function(n, init_type, boost, boost_size = 0,
   rm(hAlphas)
 
   # add productivity of scientists
-
-  scientists$productivity[scientists$scientist] <- scientists_prod
+  if (init_type == 'varage') {
+    scientists$productivity[scientists$scientist] <- scientists_prod
+  }
 
   # determine subgroups
 
