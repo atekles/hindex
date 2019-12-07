@@ -58,6 +58,16 @@ test_that("initialization", {
                   dpapers_nbinom_dispersion = , dpapers_nbinom_mean = ,
                   distr_citations = 'nbinomial', dcitations_speed = 3,
                   dcitations_peak = 3, dcitations_mean = 2, dcitations_dispersion = 1.3)
+  simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
+                  subgroups_distr = .3)
+  simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
+                  subgroups_distr = .1)
+  simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
+                  subgroups_distr = .05)
+  simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
+                  subgroups_distr = .9)
+  simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
+                  subgroups_distr = .95)
 
   plot_hsim(simdata, plot_hindex = TRUE, plot_halpha = TRUE,
             group_boundaries = c(3, 5))

@@ -23,6 +23,9 @@ simulate_hindex(runs = 1, n = 100, periods = 20,
 
 \item{periods}{Number of periods the agents collaborate across in each period.}
 
+\item{subgroups_distr}{Share of scientists in the first subgroup among all
+scientists}
+
 \item{init_type}{Type of the initial setup. May be "fixage" or "varage"}
 
 \item{distr_initial_papers}{Distribution of the papers the scientists have

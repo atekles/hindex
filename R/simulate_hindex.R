@@ -7,6 +7,8 @@
 #' @param runs Number of times the simulation is repeated.
 #' @param n Number of agents acting in each simulation.
 #' @param periods Number of periods the agents collaborate across in each period.
+#' @param subgroups_distr Share of scientists in the first subgroup among all
+#' scientists
 #' @param init_type Type of the initial setup. May be "fixage" or "varage"
 #' @param distr_initial_papers Distribution of the papers the scientists have
 #' already published at the start of the simulation. Currently, the poisson
@@ -168,6 +170,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       }
 
       nTeams <- round(length(activeScientists) / coauthors)
+      nTeamsGroup1 <- round(nTeams * subgroups_distr)
+      nTeamsGroup2 <- nTeams - nTeamsGroup1
 
       # indices of active scientists in subgroup 1 in simulationData$scientists
       # TODO test
@@ -188,20 +192,22 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         #           scientists (not all scientists!!!), starting with the one
         #           with the highest h index, then the one with the 2nd highest
         #           h index etc.
-        authorsTeams[activeScientistsGroup1][scientistsHOrder[1:nTeams]] <- 1:nTeams
+        authorsTeams[activeScientistsGroup1][scientistsHOrder[1:nTeamsGroup1]] <- 1:nTeamsGroup1
         #   first select all active scientists, because the indices in scientistsHOrder
         #   correspond to this selection of scientists
         authorsTeams[activeScientistsGroup1][
-          scientistsHOrder[(nTeams + 1):length(activeScientistsGroup1)]] <-
-          sample(nTeams, length(activeScientistsGroup1) - nTeams, replace = TRUE)
+          scientistsHOrder[(nTeamsGroup1 + 1):length(activeScientistsGroup1)]] <-
+          sample(nTeamsGroup1, length(activeScientistsGroup1) - nTeamsGroup1, replace = TRUE)
 
         # same for scientists in subgroup 2; if no subgroup2,
         # the following lines don't change anything
-        scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup2])
-        authorsTeams[activeScientistsGroup2][scientistsHOrder[1:nTeams]] <- 1:nTeams
-        authorsTeams[activeScientistsGroup2][
-          scientistsHOrder[(nTeams + 1):length(activeScientistsGroup2)]] <-
-          sample(nTeams, length(activeScientistsGroup2) - nTeams, replace = TRUE)
+        if (length(activeScientistsGroup2) > 0) {
+          scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup2])
+          authorsTeams[activeScientistsGroup2][scientistsHOrder[1:nTeamsGroup2]] <- 1:nTeamsGroup2
+          authorsTeams[activeScientistsGroup2][
+            scientistsHOrder[(nTeamsGroup2 + 1):length(activeScientistsGroup2)]] <-
+            sample(nTeamsGroup2, length(activeScientistsGroup2) - nTeamsGroup2, replace = TRUE)
+        }
 
       } else {
 
