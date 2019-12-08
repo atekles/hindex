@@ -5,12 +5,12 @@
 \title{Simulate h-index and h-alpha values}
 \usage{
 simulate_hindex(runs = 1, n = 100, periods = 20,
-  subgroups_distr = 1, subgroup_advantage = 1, init_type = "fixage",
-  distr_initial_papers = "poisson", max_age_scientists = 5,
-  dpapers_pois_lambda = 2, dpapers_nbinom_dispersion = 1.1,
-  dpapers_nbinom_mean = 2, init_productivity = 80,
-  distr_citations = "poisson", dcitations_speed = 2,
-  dcitations_peak = 3, dcitations_mean = 2,
+  subgroups_distr = 1, subgroup_advantage = 1, subgroup_exchange = 0,
+  init_type = "fixage", distr_initial_papers = "poisson",
+  max_age_scientists = 5, dpapers_pois_lambda = 2,
+  dpapers_nbinom_dispersion = 1.1, dpapers_nbinom_mean = 2,
+  init_productivity = 80, distr_citations = "poisson",
+  dcitations_speed = 2, dcitations_peak = 3, dcitations_mean = 2,
   dcitations_dispersion = 1.1, coauthors = 5,
   strategic_teams = FALSE, diligence_share = 1, diligence_corr = 0,
   selfcitations = FALSE, update_alpha_authors = FALSE, boost = FALSE,

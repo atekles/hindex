@@ -77,7 +77,7 @@
 #' plot_hsim(simdata, plot_hindex = TRUE)
 simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                             subgroups_distr = 1, subgroup_advantage = 1,
-                            init_type = 'fixage',
+                            subgroup_exchange = 0, init_type = 'fixage',
                             distr_initial_papers = 'poisson',
                             max_age_scientists = 5,
                             dpapers_pois_lambda = 2,
@@ -182,6 +182,25 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       activeScientistsGroup2 <-
         activeScientists[
           which(simulationData$scientists$subgroup[activeScientists] == 2)]
+
+      # exchange between groups
+      if (subgroup_exchange > 0) {
+        fromOneToTwo <- stats::runif(length(activeScientistsGroup1)) < subgroup_exchange
+        fromTwoToOne <- stats::runif(length(activeScientistsGroup2)) < subgroup_exchange
+        activeScientistsGroup1 <-
+          c(activeScientistsGroup1[!fromOneToTwo], activeScientistsGroup2[fromTwoToOne])
+        activeScientistsGroup2 <-
+          c(activeScientistsGroup2[!fromTwoToOne], activeScientistsGroup1[fromOneToTwo])
+      }
+
+      activeScientistsGroup1 <-
+        activeScientists[
+          which(simulationData$scientists$subgroup[activeScientists] == 1)]
+      activeScientistsGroup2 <-
+        activeScientists[
+          which(simulationData$scientists$subgroup[activeScientists] == 2)]
+
+
 
       authorsTeams <- vector(mode = 'numeric',
                              length = nrow(simulationData$scientists))
