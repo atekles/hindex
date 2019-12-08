@@ -24,6 +24,7 @@ test_that("initialization", {
 
   simulationData <- setup_simulation(n = n, boost = FALSE,
                                      subgroups_distr = 1,
+                                     subgroup_advantage = 1,
                                      init_type = 'fixage',
                                      distr_initial_papers = 'poisson',
                                      max_age_scientists = 5,
@@ -39,7 +40,7 @@ test_that("initialization", {
   expect_equal(length(simulationData), 2)
   expect_equal(names(simulationData), c('papers', 'scientists'))
   expect_equal(nrow(simulationData$scientists), n)
-  expect_equal(names(simulationData$scientists), c('scientist', 'h0', 'hAlpha0', 'subgroup'))
+  expect_equal(names(simulationData$scientists), c('scientist', 'subgroup', 'h0', 'hAlpha0'))
   expect_equal(length(as.list(simulationData$scientists$h0)), n)
   expect_equal(length(as.list(simulationData$scientists$hAlpha0)), n)
   expect_equal(nrow(simulationData$papers), max(simulationData$papers$paper))

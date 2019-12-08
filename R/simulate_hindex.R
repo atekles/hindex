@@ -126,7 +126,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
     simulationData <- setup_simulation(n = n, boost = boost,
        boost_size = boost_size, subgroups_distr = subgroups_distr,
-       init_type = init_type, distr_initial_papers = distr_initial_papers,
+       subgroup_advantage = subgroup_advantage, init_type = init_type,
+       distr_initial_papers = distr_initial_papers,
        max_age_scientists = max_age_scientists, productivity = productivity,
        distr_citations = distr_citations, dcitations_alpha = dcitations_alpha,
        dcitations_dispersion = dcitations_dispersion,
@@ -407,7 +408,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 }
 
 setup_simulation <- function(n, boost, boost_size = 0,
-                             subgroups_distr,
+                             subgroups_distr, subgroup_advantage,
                              init_type, distr_initial_papers,
                              max_age_scientists,
                              productivity, distr_citations,
@@ -502,14 +503,25 @@ setup_simulation <- function(n, boost, boost_size = 0,
     stop('citation distribution not supported')
   }
 
-  papers <- cbind(rep(1:n, noPapers),
+  # determine subgroups
+  subgroups <- vector(mode = 'integer', length = n)
+  subgroups[] <- 1
+  if (subgroups_distr < 1) {
+    subgroup_break <- round(subgroups_distr * n)
+    if (subgroup_break >= 1 && subgroup_break < n) {
+      subgroups[(subgroup_break + 1):n] <- 2
+    }
+  }
+
+  papers <- cbind(rep(1:n, noPapers), rep(subgroups, noPapers),
                   sample(maxPaperAge, sum(noPapers), replace = TRUE))
-  zeroPaperScientists <- which(noPapers == 0)
+  zeroPapers <- which(noPapers == 0)
+  zeroPaperScientists <- cbind(zeroPapers, subgroups[zeroPapers])
 
   # each element of papersOlderEq: indices of papers that are at least
   # the age of the index in papersOlderEq
   papersOlderEq <- lapply(1:maxPaperAge, function(currentPaperAge) {
-    which(papers[, 2] >= currentPaperAge)
+    which(papers[, 3] >= currentPaperAge)
   })
 
   # assign citations to papers
@@ -526,6 +538,9 @@ setup_simulation <- function(n, boost, boost_size = 0,
       currentAgeCitations[papersOlderEq[[currentPaperAge]]] <-
         stats::rpois(length(papersOlderEq[[currentPaperAge]]),
                      lambdas[currentPaperAge])
+      group2Papers <- papers[, 2] == 2
+      currentAgeCitations[group2Papers] <-
+        currentAgeCitations[group2Papers] * subgroup_advantage
       return(currentAgeCitations)
 
     })
@@ -543,6 +558,9 @@ setup_simulation <- function(n, boost, boost_size = 0,
         stats::rnbinom(length(papersOlderEq[[currentPaperAge]]),
                        size = nbinomNs[currentPaperAge],
                        prob = nbinomP)
+      group2Papers <- papers[, 2] == 2
+      currentAgeCitations[group2Papers] <-
+        currentAgeCitations[group2Papers] * subgroup_advantage
       return(currentAgeCitations)
 
     })
@@ -553,16 +571,16 @@ setup_simulation <- function(n, boost, boost_size = 0,
 
   if (boost) {
     papers <- cbind(1:nrow(papers), papers, stats::runif(nrow(papers)) < alpha_share, 0)
-    colnames(papers) <- c( 'paper', 'scientist','age', 'citations', 'alpha', 'merton')
+    colnames(papers) <- c( 'paper', 'scientist', 'subgroup', 'age', 'citations', 'alpha', 'merton')
   } else {
     papers <- cbind(1:nrow(papers), papers, stats::runif(nrow(papers)) < alpha_share)
-    colnames(papers) <- c( 'paper', 'scientist','age', 'citations', 'alpha')
+    colnames(papers) <- c( 'paper', 'scientist', 'subgroup', 'age', 'citations', 'alpha')
   }
 
   # calculate h
 
   scientists <- stats::aggregate(papers[ , 'citations'],
-                          by = list(papers[ , 'scientist']),
+                          by = list(papers[ , 'scientist'], papers[ , 'subgroup']),
                           FUN = function(citations) {
                             # rank(-citations, ties.method = 'first')
                             #   --> paper order by desc nr of citations
@@ -570,12 +588,14 @@ setup_simulation <- function(n, boost, boost_size = 0,
                                            rank(-citations, ties.method = 'first')))
                           }
   )
-  colnames(scientists) <- c('scientist', 'h0')
+  colnames(scientists) <- c('scientist', 'subgroup', 'h0')
+
+  papers <- papers[ , -3]
 
   if (length(zeroPaperScientists) > 0) {
     # add scientists with no paper (wouldn't be considered in previous step)
     newScientists <- cbind(zeroPaperScientists, 0)
-    colnames(newScientists) <- c('scientist', 'h0')
+    colnames(newScientists) <- c('scientist', 'subgroup', 'h0')
     scientists <- rbind(scientists, newScientists)
   }
 
@@ -613,18 +633,6 @@ setup_simulation <- function(n, boost, boost_size = 0,
   # add productivity of scientists
   if (init_type == 'varage') {
     scientists$productivity[scientists$scientist] <- scientists_prod
-  }
-
-  # determine subgroups
-
-  scientists$subgroup <- vector(mode = 'integer', length = n)
-  scientists$subgroup[] <- 1
-  if (subgroups_distr < 1) {
-    subgroup_break <- round(subgroups_distr * n)
-    if (subgroup_break >= 1 && subgroup_break < n) {
-      scientists$subgroup[1:subgroup_break] <- 1
-      scientists$subgroup[(subgroup_break + 1):n] <- 2
-    }
   }
 
   return(list(papers = data.frame(papers), scientists = data.frame(scientists)))
