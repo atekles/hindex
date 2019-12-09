@@ -46,9 +46,6 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
     stop('either plot_hindex or plot_halpha (or both) must be TRUE')
   }
 
-  if (typeof(simdata) != 'list') {
-    stop('simdata must be a list')
-  }
   if (typeof(simdata) != 'list' ||
       length(unique(lapply(simdata, length))) != 1 ||
       length(unique(unlist(

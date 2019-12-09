@@ -119,6 +119,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
   hValuesRuns <- list()
   hAlphaValuesRuns <- list()
+  toppaperValuesRuns <- list()
 
   for (currentRun in 1:runs) {
 
@@ -140,6 +141,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
     names(hAlphaValues) <- c('period-0')
     hValues <- list(simulationData$scientists$h0)
     names(hValues) <- c('period-0')
+    toppaperValues <- list(simulationData$scientists$toppapers0)
+    names(toppaperValues) <- c('period-0')
     nextPaperId <- nrow(simulationData$papers) + 1
 
     ## iterate over periods
@@ -387,6 +390,62 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
       }
 
+      # determine toppapers
+
+      if (subgroups_distr == 1) {
+        papersUnique <- unique(simulationData$papers[ , c('paper', 'citations')])
+        # TODO test if length(papersUnique) == length(unique(paper))
+        p90 <- stats::quantile(papersUnique[ , 'citations'], prob = .9)
+        top10Papers <- simulationData$papers$paper[simulationData$papers$citations > p90]
+        toppapersIndices <- simulationData$papers$paper %in% top10Papers
+        #   -> this step is necessary, because simulationData$papers$citations > p90
+        #       would be on the level of authorships
+        #   -> this might differ from paper level in case of cooperations across
+        #       subgroups
+      } else {
+        group1Authorships <- simulationData$papers$scientist %in%
+          simulationData$scientists$scientist[simulationData$scientists$subgroup == 1]
+        group2Authorships <- simulationData$papers$scientist %in%
+          simulationData$scientists$scientist[simulationData$scientists$subgroup == 2]
+        papersUniqueGroup1 <-
+          unique(simulationData$papers[group1Authorships , c('paper', 'citations')])
+        #   -> papers with at least one author in subgroup 1
+        papersUniqueGroup2 <-
+          unique(simulationData$papers[group2Authorships , c('paper', 'citations')])
+        #   -> papers with at least one author in subgroup 2
+        p90Group1 <- stats::quantile(
+          papersUniqueGroup1[ , 'citations'], prob = .9
+        )
+        p90Group2 <- stats::quantile(
+          papersUniqueGroup2[ , 'citations'], prob = .9
+        )
+        top10PapersGroup1 <-
+          intersect(
+            simulationData$papers$paper[simulationData$papers$citations > p90Group1],
+            papersUniqueGroup1[ , 'paper']
+          )
+        top10PapersGroup2 <-
+          intersect(
+            simulationData$papers$paper[simulationData$papers$citations > p90Group2],
+            papersUniqueGroup2[ , 'paper']
+          )
+        top10Papers <- union(top10PapersGroup1, top10PapersGroup2)
+        #   -> all papers which are a top paper in at least one of the two groups
+        #       AND have at least one author in this group
+        toppapersIndices <- simulationData$papers$paper %in% top10Papers
+      }
+      # count top papers
+      newToppapers <- stats::aggregate(toppapersIndices,
+                                        by = list(simulationData$papers$scientist),
+                                        FUN = function(top10s) {
+                                          length(which(top10s))
+                                        }
+      )
+      # store new toppaper values
+      periodLabel <- paste('period-', currentPeriod, sep = '')
+      toppaperValues[[periodLabel]] <- vector(mode = 'numeric', length = n)
+      toppaperValues[[periodLabel]][newToppapers$Group.1] <- newToppapers$x
+
       # compute h, hAlpha
       newHs <- stats::aggregate(simulationData$papers[ , 'citations'],
                   by = list(simulationData$papers[ , 'scientist']),
@@ -395,7 +454,6 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                   }
       )
       # store new h-index values
-      periodLabel <- paste('period-', currentPeriod, sep = '')
       hValues[[periodLabel]] <- vector(mode = 'numeric', length = n)
       hValues[[periodLabel]][newHs$Group.1] <- newHs$x
       rm(newHs)
@@ -417,11 +475,13 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
     hValuesRuns[[paste('run-', currentRun, sep = '')]] <- hValues
     hAlphaValuesRuns[[paste('run-', currentRun, sep = '')]] <- hAlphaValues
+    toppaperValuesRuns[[paste('run-', currentRun, sep = '')]] <-
+      toppaperValues
 
   }
 
-  res <- list(hValuesRuns, hAlphaValuesRuns)
-  names(res) <- c('h', 'h_alpha')
+  res <- list(hValuesRuns, hAlphaValuesRuns, toppaperValuesRuns)
+  names(res) <- c('h', 'h_alpha', 'top10_papers')
   return(res)
 
 }
@@ -590,10 +650,32 @@ setup_simulation <- function(n, boost, boost_size = 0,
 
   if (boost) {
     papers <- cbind(1:nrow(papers), papers, stats::runif(nrow(papers)) < alpha_share, 0)
-    colnames(papers) <- c( 'paper', 'scientist', 'subgroup', 'age', 'citations', 'alpha', 'merton')
+    colnames(papers) <- c('paper', 'scientist', 'subgroup', 'age', 'citations', 'alpha', 'merton')
   } else {
     papers <- cbind(1:nrow(papers), papers, stats::runif(nrow(papers)) < alpha_share)
-    colnames(papers) <- c( 'paper', 'scientist', 'subgroup', 'age', 'citations', 'alpha')
+    colnames(papers) <- c('paper', 'scientist', 'subgroup', 'age', 'citations', 'alpha')
+  }
+
+  # determine top 10% papers
+
+  if (subgroups_distr == 1) {
+    papersUnique <- unique(papers[ , c('paper', 'citations')])
+    # TODO test if length(papersUnique) == length(unique(paper))
+    p90 <- stats::quantile(papersUnique[ , 'citations'], prob = .9)
+    top10Papers <- papers[ , 'citations'] > p90
+  } else {
+    papersUnique <- unique(papers[ , c('paper', 'subgroup', 'citations')])
+    p90Group1 <- stats::quantile(
+      papersUnique[papersUnique[ , 'subgroup'] == 1, 'citations'], prob = .9
+    )
+    p90Group2 <- stats::quantile(
+      papersUnique[papersUnique[ , 'subgroup'] == 2, 'citations'], prob = .9
+    )
+    top10PapersGroup1 <-
+      papers[ , 'citations'] > p90Group1 & papers[ , 'subgroup'] == 1
+    top10PapersGroup2 <-
+      papers[ , 'citations'] > p90Group2 & papers[ , 'subgroup'] == 2
+    top10Papers <- top10PapersGroup1 | top10PapersGroup2
   }
 
   # calculate h
@@ -611,10 +693,23 @@ setup_simulation <- function(n, boost, boost_size = 0,
 
   papers <- papers[ , -3]
 
+  # count top papers
+  initialTop10s <- stats::aggregate(top10Papers,
+                   by = list(papers[ , 'scientist']),
+                   FUN = function(top10s) {
+                     length(which(top10s == 1))
+                   }
+  )
+  colnames(initialTop10s) <- c('scientist', 'topPapers')
+  top10Matches <- match(scientists[ , 'scientist'], initialTop10s[ , 'scientist'])
+  #   -> for each row in scientists: matching row in initialTop10s
+  scientists <- cbind(scientists, initialTop10s[top10Matches, 'topPapers'])
+  colnames(scientists) <- c('scientist', 'subgroup', 'h0', 'toppapers0')
+
   if (length(zeroPaperScientists) > 0) {
     # add scientists with no paper (wouldn't be considered in previous step)
-    newScientists <- cbind(zeroPaperScientists, 0)
-    colnames(newScientists) <- c('scientist', 'subgroup', 'h0')
+    newScientists <- cbind(zeroPaperScientists, 0, 0)
+    colnames(newScientists) <- c('scientist', 'subgroup', 'h0', 'toppapers0')
     scientists <- rbind(scientists, newScientists)
   }
 
