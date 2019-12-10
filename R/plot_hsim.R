@@ -8,6 +8,8 @@
 #' plotted.
 #' @param plot_halpha If this parameter is set to TRUE, the h-alpha values are
 #' plotted.
+#' @param plot_toppapers If this parameter is set to TRUE, the numbers of
+#' top-10\% papers are plotted.
 #' @param group_boundaries A list of vectors or a vector of integers specifying
 #' the groups for plotting the h-index/h-alpha values separately for each of
 #' these groups. The groups are defined based on the initial h-index of the
@@ -38,12 +40,14 @@
 #' simdata <- simulate_hindex(runs = 2, n = 20, periods = 3)
 #' plot_hsim(simdata, plot_hindex = TRUE, plot_halpha = TRUE)
 plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
+                      plot_toppapers = FALSE,
                       group_boundaries = NULL,
                       exclude_group_boundaries = FALSE,
                       plot_group_diffs = FALSE) {
 
-  if (!plot_hindex & !plot_halpha) {
-    stop('either plot_hindex or plot_halpha (or both) must be TRUE')
+  if (!plot_hindex & !plot_halpha & !plot_toppapers) {
+    stop('at least one of the parameters plot_hindex, plot_halpha,
+         plot_toppapers must be TRUE')
   }
 
   if (typeof(simdata) != 'list' ||
@@ -270,6 +274,80 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
   }
 
+  if (plot_toppapers) {
+
+    nPeriods <- length(simdata$h[[1]])
+
+    toppapersRunIndex <- 0
+    toppapersMeansRuns <- foreach::foreach(toppapersRunIndex = 1:length(simdata$top10_papers),
+                                        .combine = '+') %do% {
+
+                                          # toppapersRunIndex <- toppapersRunIndex + 1
+
+                                          if (groups > 1) {
+                                            groupsScientists <- lapply(1:groups, function(currentGroup) {
+                                              # TODO
+                                              if (exclude_group_boundaries) {
+                                                currentScientists <- which(simdata$h[[toppapersRunIndex]][[1]] >
+                                                                             groupBoundariesOrdered[[currentGroup]][1] &
+                                                                             simdata$h[[toppapersRunIndex]][[1]] <
+                                                                             groupBoundariesOrdered[[currentGroup]][2])
+                                                if (length(currentScientists) <= 0) {
+                                                  warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                                }
+                                              } else {
+                                                currentScientists <- which(simdata$h[[toppapersRunIndex]][[1]] >=
+                                                                             groupBoundariesOrdered[[currentGroup]][1] &
+                                                                             simdata$h[[toppapersRunIndex]][[1]] <=
+                                                                             groupBoundariesOrdered[[currentGroup]][2])
+                                                if (length(currentScientists) <= 0) {
+                                                  warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                                }
+                                              }
+                                              return(currentScientists)
+                                            })
+                                          } else {
+                                            groupsScientists <- list(1:length(simdata$h[[1]][[1]]))
+                                          }
+
+                                          toppapersPeriod <- NULL
+                                          runMeans <- foreach::foreach(toppapersPeriod = simdata$top10_papers[[toppapersRunIndex]], .combine = 'cbind') %do% {
+
+                                            # get mean for each group
+                                            runPeriodGroupMeans <- vapply(1:groups, FUN = function(currentGroup) {
+                                              mean(toppapersPeriod[groupsScientists[[currentGroup]]])
+                                            }, FUN.VALUE = double(1))
+                                            return(t(runPeriodGroupMeans))
+
+                                          }
+
+                                          return(runMeans)
+
+                                        }
+
+    toppapersMeansRuns <- toppapersMeansRuns / length(simdata$top10_papers)
+    vals <- t(toppapersMeansRuns)
+    period <-rep(1:nPeriods, each = groups)
+    hInitGroup <- as.integer(round(rep(1:groups, nPeriods)))
+    indexType <- 'toppapers'
+
+    if (plot_hindex || plot_halpha) {
+      plotData <- rbind(plotData, data.frame(vals = vals, period = period,
+                                             hInitGroup = hInitGroup, indexType = indexType))
+    } else {
+      plotData <- data.frame(vals = vals, period = period,
+                             hInitGroup = hInitGroup, indexType = indexType)
+    }
+
+    if (plot_group_diffs) {
+      diffs <- vals[c(FALSE, TRUE)] - vals[c(TRUE, FALSE)]
+      plotData <- rbind(plotData,
+                        data.frame(vals = diffs, period = 1:nPeriods,
+                                   hInitGroup = groups + 1, indexType = indexType))
+    }
+
+  }
+
   # initialize ggplot
   sim_plot <- ggplot2::ggplot(plotData,
                               ggplot2::aes(x = period, y = vals,
@@ -327,7 +405,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
       ggplot2::scale_color_discrete(guide = FALSE)
   }
 
-  if (plot_hindex + plot_halpha == 1) {
+  if (plot_hindex + plot_halpha + plot_toppapers == 1) {
     sim_plot <- sim_plot +
       ggplot2::scale_linetype_discrete(guide = FALSE)
   } else {

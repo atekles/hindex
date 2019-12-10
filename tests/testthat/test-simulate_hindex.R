@@ -72,6 +72,10 @@ test_that("initialization", {
 
   plot_hsim(simdata, plot_hindex = TRUE, plot_halpha = TRUE,
             group_boundaries = c(3, 5))
+  plot_hsim(simdata, plot_hindex = TRUE, plot_halpha = TRUE,
+            plot_toppapers = TRUE, group_boundaries = c(3, 5))
+  plot_hsim(simdata, plot_hindex = TRUE, plot_halpha = FALSE,
+            plot_toppapers = TRUE, group_boundaries = c(3, 5))
   plot_hsim(simdata, plot_hindex = FALSE, plot_halpha = TRUE,
             group_boundaries = list(c(1, 2), c(3, 4), c(5, Inf)))
   plot_hsim(simdata, plot_halpha = TRUE,
