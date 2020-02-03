@@ -237,6 +237,12 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       # add paper for each team, intial age = 1
       newPaperIds <- nextPaperId:(nextPaperId + nTeams - 1)
       nextPaperId <- nextPaperId + nTeams
+
+      # TODO ver
+      if (length(newPaperIds) != nTeams) {
+        stop('length(newPaperIds) != length(newPapers')
+      }
+
       currentTeam <- 1
       newPapers <- foreach::foreach(currentTeam = 1:nTeams, .combine = 'rbind') %do% {
         # get indices of scientists in this team
@@ -257,18 +263,18 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         }
       }
 
-      # TODO ver
-      if (length(newPaperIds) != nrow(newPapers)) {
-        stop('length(newPaperIds) != length(newPapers')
-      }
-
       # for each paper: add subgroup
       # here: for newPapers[, 2], look up whether it is in activeScientistsGroup2; if yes, assign subgroup 2, otherwise subgroup 1
-      newPapersSubgroups <- vector(mode = "integer", length = nTeams)
+      newPapersSubgroups <- vector(mode = "integer", length = nrow(newPapers))
       newPapersSubgroups[] <- 1
       newPapersSubgroups[newPapers[ , 2] %in% activeScientistsGroup2] <- 2
 
       newPapers <- cbind(newPapers, newPapersSubgroups)
+
+      # TODO ver each paper exactly assigned to one subgroup
+      if (nrow(unique(newPapers[ , c(1, ncol(newPapers))])) != length(unique(newPapers[ , 1]))) {
+        stop('papers assigned to more than one subgroup')
+      }
 
       # TODO next
       #
