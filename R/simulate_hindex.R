@@ -196,15 +196,6 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
           c(activeScientistsGroup2[!fromTwoToOne], activeScientistsGroup1[fromOneToTwo])
       }
 
-      activeScientistsGroup1 <-
-        activeScientists[
-          which(simulationData$scientists$subgroup[activeScientists] == 1)]
-      activeScientistsGroup2 <-
-        activeScientists[
-          which(simulationData$scientists$subgroup[activeScientists] == 2)]
-
-
-
       authorsTeams <- vector(mode = 'numeric',
                              length = nrow(simulationData$scientists))
 
@@ -226,26 +217,26 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         # the following lines don't change anything
         if (length(activeScientistsGroup2) > 0) {
           scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup2])
-          authorsTeams[activeScientistsGroup2][scientistsHOrder[1:nTeamsGroup2]] <- 1:nTeamsGroup2
+          authorsTeams[activeScientistsGroup2][scientistsHOrder[1:nTeamsGroup2]] <- (nTeamsGroup1 + 1):(nTeamsGroup1 + nTeamsGroup2)
           authorsTeams[activeScientistsGroup2][
             scientistsHOrder[(nTeamsGroup2 + 1):length(activeScientistsGroup2)]] <-
-            sample(nTeamsGroup2, length(activeScientistsGroup2) - nTeamsGroup2, replace = TRUE)
+            sample((nTeamsGroup1 + 1):(nTeamsGroup1 + nTeamsGroup2), length(activeScientistsGroup2) - nTeamsGroup2, replace = TRUE)
         }
 
       } else {
 
         authorsTeams[activeScientistsGroup1] <-
-          sample(nTeams, length(activeScientistsGroup1), replace = TRUE)
+          sample(nTeamsGroup1, length(activeScientistsGroup1), replace = TRUE)
         authorsTeams[activeScientistsGroup2] <-
-          sample(nTeams, length(activeScientistsGroup2), replace = TRUE)
+          sample((nTeamsGroup1 + 1):(nTeamsGroup1 + nTeamsGroup2), length(activeScientistsGroup2), replace = TRUE)
 
       }
 
       # 0-elements in authorsTeams correspond to authors not active in this period
 
       # add paper for each team, intial age = 1
-      newPaperIds <- nextPaperId:(nextPaperId + nTeams)
-      nextPaperId <- nextPaperId + nTeams + 1
+      newPaperIds <- nextPaperId:(nextPaperId + nTeams - 1)
+      nextPaperId <- nextPaperId + nTeams
       currentTeam <- 1
       newPapers <- foreach::foreach(currentTeam = 1:nTeams, .combine = 'rbind') %do% {
         # get indices of scientists in this team
@@ -266,10 +257,32 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         }
       }
 
+      # TODO ver
+      if (length(newPaperIds) != nrow(newPapers)) {
+        stop('length(newPaperIds) != length(newPapers')
+      }
+
+      # for each paper: add subgroup
+      # here: for newPapers[, 2], look up whether it is in activeScientistsGroup2; if yes, assign subgroup 2, otherwise subgroup 1
+      newPapersSubgroups <- vector(mode = "integer", length = nTeams)
+      newPapersSubgroups[] <- 1
+      newPapersSubgroups[newPapers[ , 2] %in% activeScientistsGroup2] <- 2
+
+      newPapers <- cbind(newPapers, newPapersSubgroups)
+
+      # TODO next
+      #
+      # calculate same variables as in do file
+      # code review
+      # documentation
+      # test
+      # check if old function calls are still possible
+      # test calls from (both) papers
+
       if (boost) {
-        colnames(newPapers) <- c( 'paper', 'scientist','age', 'citations', 'alpha', 'merton')
+        colnames(newPapers) <- c( 'paper', 'scientist','age', 'citations', 'alpha', 'merton', 'subgroup')
       } else {
-        colnames(newPapers) <- c( 'paper', 'scientist','age', 'citations', 'alpha')
+        colnames(newPapers) <- c( 'paper', 'scientist','age', 'citations', 'alpha', 'subgroup')
       }
       simulationData$papers <- rbind(simulationData$papers, newPapers)
 
@@ -394,25 +407,18 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
       if (subgroups_distr == 1) {
         papersUnique <- unique(simulationData$papers[ , c('paper', 'citations')])
-        # TODO test if length(papersUnique) == length(unique(paper))
+        #   -> this step is necessary, because simulationData$papers$citations > p90
+        #       would be on the level of authorships
+        # TODO verify that length(papersUnique) == length(unique(paper))
         p90 <- stats::quantile(papersUnique[ , 'citations'], prob = .9)
         top10Papers <- simulationData$papers$paper[simulationData$papers$citations > p90]
         toppapersIndices <- simulationData$papers$paper %in% top10Papers
-        #   -> this step is necessary, because simulationData$papers$citations > p90
-        #       would be on the level of authorships
-        #   -> this might differ from paper level in case of cooperations across
-        #       subgroups
       } else {
-        group1Authorships <- simulationData$papers$scientist %in%
-          simulationData$scientists$scientist[simulationData$scientists$subgroup == 1]
-        group2Authorships <- simulationData$papers$scientist %in%
-          simulationData$scientists$scientist[simulationData$scientists$subgroup == 2]
-        papersUniqueGroup1 <-
-          unique(simulationData$papers[group1Authorships , c('paper', 'citations')])
-        #   -> papers with at least one author in subgroup 1
-        papersUniqueGroup2 <-
-          unique(simulationData$papers[group2Authorships , c('paper', 'citations')])
-        #   -> papers with at least one author in subgroup 2
+
+        papersUniqueGroup1 <- unique(simulationData$papers[simulationData$papers$subgroup == 1,
+                                                           c('paper', 'citations')])
+        papersUniqueGroup2 <- unique(simulationData$papers[simulationData$papers$subgroup == 2,
+                                                           c('paper', 'citations')])
         p90Group1 <- stats::quantile(
           papersUniqueGroup1[ , 'citations'], prob = .9
         )
@@ -592,7 +598,8 @@ setup_simulation <- function(n, boost, boost_size = 0,
     }
   }
 
-  papers <- cbind(rep(1:n, noPapers), rep(subgroups, noPapers),
+  papersSubgroup <- rep(subgroups, noPapers)
+  papers <- cbind(rep(1:n, noPapers),
                   sample(maxPaperAge, sum(noPapers), replace = TRUE))
   zeroPapers <- which(noPapers == 0)
   zeroPaperScientists <- cbind(zeroPapers, subgroups[zeroPapers])
@@ -600,7 +607,7 @@ setup_simulation <- function(n, boost, boost_size = 0,
   # each element of papersOlderEq: indices of papers that are at least
   # the age of the index in papersOlderEq
   papersOlderEq <- lapply(1:maxPaperAge, function(currentPaperAge) {
-    which(papers[, 3] >= currentPaperAge)
+    which(papers[, 2] >= currentPaperAge)
   })
 
   # assign citations to papers
@@ -617,7 +624,7 @@ setup_simulation <- function(n, boost, boost_size = 0,
       currentAgeCitations[papersOlderEq[[currentPaperAge]]] <-
         stats::rpois(length(papersOlderEq[[currentPaperAge]]),
                      lambdas[currentPaperAge])
-      group2Papers <- papers[, 2] == 2
+      group2Papers <- papersSubgroup == 2
       currentAgeCitations[group2Papers] <-
         currentAgeCitations[group2Papers] * subgroup_advantage
       return(currentAgeCitations)
@@ -637,7 +644,7 @@ setup_simulation <- function(n, boost, boost_size = 0,
         stats::rnbinom(length(papersOlderEq[[currentPaperAge]]),
                        size = nbinomNs[currentPaperAge],
                        prob = nbinomP)
-      group2Papers <- papers[, 2] == 2
+      group2Papers <- papersSubgroup == 2
       currentAgeCitations[group2Papers] <-
         currentAgeCitations[group2Papers] * subgroup_advantage
       return(currentAgeCitations)
@@ -649,11 +656,11 @@ setup_simulation <- function(n, boost, boost_size = 0,
   # define alpha papers
 
   if (boost) {
-    papers <- cbind(1:nrow(papers), papers, stats::runif(nrow(papers)) < alpha_share, 0)
-    colnames(papers) <- c('paper', 'scientist', 'subgroup', 'age', 'citations', 'alpha', 'merton')
+    papers <- cbind(1:nrow(papers), papers, stats::runif(nrow(papers)) < alpha_share, 0, papersSubgroup)
+    colnames(papers) <- c('paper', 'scientist', 'age', 'citations', 'alpha', 'merton', 'subgroup')
   } else {
-    papers <- cbind(1:nrow(papers), papers, stats::runif(nrow(papers)) < alpha_share)
-    colnames(papers) <- c('paper', 'scientist', 'subgroup', 'age', 'citations', 'alpha')
+    papers <- cbind(1:nrow(papers), papers, stats::runif(nrow(papers)) < alpha_share, papersSubgroup)
+    colnames(papers) <- c('paper', 'scientist', 'age', 'citations', 'alpha', 'subgroup')
   }
 
   # determine top 10% papers
@@ -690,8 +697,6 @@ setup_simulation <- function(n, boost, boost_size = 0,
                           }
   )
   colnames(scientists) <- c('scientist', 'subgroup', 'h0')
-
-  papers <- papers[ , -3]
 
   # count top papers
   initialTop10s <- stats::aggregate(top10Papers,
