@@ -177,6 +177,13 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       nTeamsGroup1 <- round(nTeams * subgroups_distr)
       nTeamsGroup2 <- nTeams - nTeamsGroup1
 
+      if (nTeamsGroup1 == 0) {
+        warning('no teams in subgroup one; increase subgroups_distr or n')
+      }
+      if (subgroups_distr < 1 && nTeamsGroup2 == 0) {
+        warning('no teams in subgroup two; decrease subgroups_distr or increase n')
+      }
+
       # indices of active scientists in subgroup 1 in simulationData$scientists
       # TODO test
       activeScientistsGroup1 <-
@@ -188,51 +195,114 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
       # exchange between groups
       if (subgroup_exchange > 0) {
-        fromOneToTwo <- stats::runif(length(activeScientistsGroup1)) < subgroup_exchange
-        fromTwoToOne <- stats::runif(length(activeScientistsGroup2)) < subgroup_exchange
+        if (length(activeScientistsGroup1) == 0) {
+          # no scientists can exchange from group 1 to group 2
+          fromOneToTwo <- vector(mode = 'logical', length = 0)
+        } else {
+          fromOneToTwo <- stats::runif(length(activeScientistsGroup1)) < subgroup_exchange
+        }
+        if (subgroups_distr < 1 && nTeamsGroup2 == 0) {
+          # no scientists can exchange from group 2 to group 1
+          fromOneToTwo <- vector(mode = 'logical', length = 0)
+        } else {
+          fromTwoToOne <- stats::runif(length(activeScientistsGroup2)) < subgroup_exchange
+        }
         activeScientistsGroup1 <-
           c(activeScientistsGroup1[!fromOneToTwo], activeScientistsGroup2[fromTwoToOne])
         activeScientistsGroup2 <-
           c(activeScientistsGroup2[!fromTwoToOne], activeScientistsGroup1[fromOneToTwo])
       }
 
-      authorsTeams <- vector(mode = 'numeric',
-                             length = nrow(simulationData$scientists))
+      # for each team one entry (will be filled with author ids)
+      teamsAuthors <- list()
 
       if (strategic_teams) {
 
-        scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup1])
-        #   scientistsHOrder: the index of scientists in the vector of active
-        #           scientists (not all scientists!!!), starting with the one
-        #           with the highest h index, then the one with the 2nd highest
-        #           h index etc.
-        authorsTeams[activeScientistsGroup1][scientistsHOrder[1:nTeamsGroup1]] <- 1:nTeamsGroup1
-        #   first select all active scientists, because the indices in scientistsHOrder
-        #   correspond to this selection of scientists
-        authorsTeams[activeScientistsGroup1][
-          scientistsHOrder[(nTeamsGroup1 + 1):length(activeScientistsGroup1)]] <-
-          sample(nTeamsGroup1, length(activeScientistsGroup1) - nTeamsGroup1, replace = TRUE)
+        if (nTeamsGroup1 > 0) {
+
+          scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup1])
+          #   scientistsHOrder: the index of scientists in the vector of active
+          #           scientists (not all scientists!!!), starting with the one
+          #           with the highest h index, then the one with the 2nd highest
+          #           h index etc.
+
+          # TODO fill entries in teamsAuthors for first subgroup with best authors in group 1
+          foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
+            teamsAuthors[[currentTeam]] <- activeScientistsGroup1[scientistsHOrder[currentTeam]]
+            return(NULL)
+          }
+
+          # for each author in group 1, assign team id randomly
+          authorsTeams1 <- sample(nTeamsGroup1, length(activeScientistsGroup1) - nTeamsGroup1, replace = TRUE)
+          # fill teams based on these random team ids
+          foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
+            teamsAuthors[[currentTeam]] <- c(teamsAuthors[[currentTeam]],
+                                             activeScientistsGroup1[
+                                               scientistsHOrder[(nTeamsGroup1 + 1):length(activeScientistsGroup1)][
+                                                 authorsTeams1 == currentTeam]]
+            )
+            return(NULL)
+          }
+
+        }
 
         # same for scientists in subgroup 2; if no subgroup2,
         # the following lines don't change anything
-        if (length(activeScientistsGroup2) > 0) {
+        if (nTeamsGroup2 > 0) {
           scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup2])
-          authorsTeams[activeScientistsGroup2][scientistsHOrder[1:nTeamsGroup2]] <- (nTeamsGroup1 + 1):(nTeamsGroup1 + nTeamsGroup2)
-          authorsTeams[activeScientistsGroup2][
-            scientistsHOrder[(nTeamsGroup2 + 1):length(activeScientistsGroup2)]] <-
-            sample((nTeamsGroup1 + 1):(nTeamsGroup1 + nTeamsGroup2), length(activeScientistsGroup2) - nTeamsGroup2, replace = TRUE)
+          foreach::foreach(currentTeam = 1:nTeamsGroup2) %do% {
+            teamsAuthors[[currentTeam + nTeamsGroup1]] <- activeScientistsGroup2[scientistsHOrder[currentTeam]]
+            return(NULL)
+          }
+          authorsTeams2 <- sample(nTeamsGroup2, length(activeScientistsGroup2) - nTeamsGroup2, replace = TRUE)
+          foreach::foreach(currentTeam = 1:nTeamsGroup2) %do% {
+            teamsAuthors[[currentTeam + nTeamsGroup1]] <- c(teamsAuthors[[currentTeam + nTeamsGroup1]],
+                                                          activeScientistsGroup2[
+                                                            scientistsHOrder[(nTeamsGroup2 + 1):length(activeScientistsGroup2)][
+                                                              authorsTeams2 == currentTeam]]
+                                                          )
+            return(NULL)
+          }
         }
 
       } else {
 
-        authorsTeams[activeScientistsGroup1] <-
-          sample(nTeamsGroup1, length(activeScientistsGroup1), replace = TRUE)
-        authorsTeams[activeScientistsGroup2] <-
-          sample((nTeamsGroup1 + 1):(nTeamsGroup1 + nTeamsGroup2), length(activeScientistsGroup2), replace = TRUE)
+        if (nTeamsGroup1 > 0) {
+          authorsTeams1 <- sample(nTeamsGroup1, length(activeScientistsGroup1), replace = TRUE)
+          foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
+            teamsAuthors[[currentTeam]] <- activeScientistsGroup1[authorsTeams1 == currentTeam]
+            return(NULL)
+          }
+        }
+
+        if (nTeamsGroup2 > 0) {
+          authorsTeams2 <- sample(nTeamsGroup2, length(activeScientistsGroup2), replace = TRUE)
+          foreach::foreach(currentTeam = 1:nTeamsGroup2) %do% {
+            teamsAuthors[[currentTeam + nTeamsGroup1]] <- activeScientistsGroup2[authorsTeams2 == currentTeam]
+            return(NULL)
+          }
+        }
 
       }
 
-      # 0-elements in authorsTeams correspond to authors not active in this period
+      # TODO ver
+      # if nTeams1 > 0: all activeScientists1 in unlist(teamsAuthors)
+      if (nTeamsGroup1 > 0 && !all(activeScientistsGroup1 %in% unlist(teamsAuthors))) {
+        stop('not all active scientists assigned to teams in subgroup 1')
+      }
+      # if nTeams2 > 0: all activeScientists2 in unlist(teamsAuthors)
+      if (nTeamsGroup2 > 0 && !all(activeScientistsGroup2 %in% unlist(teamsAuthors))) {
+        stop('not all active scientists assigned to teams in subgroup 2')
+      }
+      # length(teamsAuthors) == nTeams == nTeams1 + nTeams2
+      if (length(teamsAuthors) != nTeams) {
+        # if a team has no authors assigned (can happen because team memberships are assigned randomly with replacement)
+        stop('no teams does not equal the no of expected teams')
+      }
+      # no author is assigned to both subgroups
+      if (nTeamsGroup1 > 0 && nTeamsGroup2 > 0 && length(intersect(unlist(teamsAuthors[1:nTeamsGroup1]), unlist(teamsAuthors[(nTeamsGroup1 + 1):(nTeams)]))) != 0) {
+        stop('some authors are assigned to multiple subgroups')
+      }
 
       # add paper for each team, intial age = 1
       newPaperIds <- nextPaperId:(nextPaperId + nTeams - 1)
@@ -246,7 +316,9 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       currentTeam <- 1
       newPapers <- foreach::foreach(currentTeam = 1:nTeams, .combine = 'rbind') %do% {
         # get indices of scientists in this team
-        currentAuthors <- which(authorsTeams == currentTeam)
+        # currentAuthors <- which(authorsTeams == currentTeam)
+        # TODO
+        currentAuthors <- teamsAuthors[[currentTeam]]
         if (length(currentAuthors) == 0) {
           return(NULL)
         }
@@ -255,21 +327,27 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
           hValues[[length(hValues)]][currentAuthors] == maxH
         #     -> more than one alpha author possible?
 
+        if (currentTeam <= nTeamsGroup1) {
+          currentSubgroup <- 1
+        } else {
+          currentSubgroup <- 2
+        }
+
         if (boost) {
           mertonBonus <- round(boost_size * maxH)
-          return(cbind(newPaperIds[currentTeam], currentAuthors, 1, 0, alphaAuthors, mertonBonus))
+          return(cbind(newPaperIds[currentTeam], currentAuthors, 1, 0, alphaAuthors, mertonBonus, currentSubgroup))
         } else {
-          return(cbind(newPaperIds[currentTeam], currentAuthors, 1, 0, alphaAuthors))
+          return(cbind(newPaperIds[currentTeam], currentAuthors, 1, 0, alphaAuthors, currentSubgroup))
         }
       }
 
-      # for each paper: add subgroup
-      # here: for newPapers[, 2], look up whether it is in activeScientistsGroup2; if yes, assign subgroup 2, otherwise subgroup 1
-      newPapersSubgroups <- vector(mode = "integer", length = nrow(newPapers))
-      newPapersSubgroups[] <- 1
-      newPapersSubgroups[newPapers[ , 2] %in% activeScientistsGroup2] <- 2
-
-      newPapers <- cbind(newPapers, newPapersSubgroups)
+      # # for each paper: add subgroup
+      # # here: for newPapers[, 2], look up whether it is in activeScientistsGroup2; if yes, assign subgroup 2, otherwise subgroup 1
+      # newPapersSubgroups <- vector(mode = "integer", length = nrow(newPapers))
+      # newPapersSubgroups[] <- 1
+      # newPapersSubgroups[newPapers[ , 2] %in% activeScientistsGroup2] <- 2
+      #
+      # newPapers <- cbind(newPapers, newPapersSubgroups)
 
       # TODO ver each paper exactly assigned to one subgroup
       if (nrow(unique(newPapers[ , c(1, ncol(newPapers))])) != length(unique(newPapers[ , 1]))) {
