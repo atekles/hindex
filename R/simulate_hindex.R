@@ -549,7 +549,6 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       # store new h-index values
       hValues[[periodLabel]] <- vector(mode = 'numeric', length = n)
       hValues[[periodLabel]][newHs$Group.1] <- newHs$x
-      rm(newHs)
 
       newHAlphas <- stats::aggregate(1:nrow(simulationData$papers),
                   by = list(simulationData$papers[ , 'scientist']),
@@ -578,7 +577,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
   }
 
   res <- list(hValuesRuns, hAlphaValuesRuns, toppaperValuesRuns, mindexValuesRuns)
-  names(res) <- c('h', 'h_alpha', 'top10_papers')
+  names(res) <- c('h', 'h_alpha', 'top10_papers', 'mindex')
   return(res)
 
 }

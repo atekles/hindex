@@ -10,6 +10,8 @@
 #' plotted.
 #' @param plot_toppapers If this parameter is set to TRUE, the numbers of
 #' top-10\% papers are plotted.
+#' @param plot_mindex If this parameter is set to TRUE, the mindex values are
+#' plotted.
 #' @param group_boundaries A list of vectors or a vector of integers specifying
 #' the groups for plotting the h-index/h-alpha values separately for each of
 #' these groups. The groups are defined based on the initial h-index of the
@@ -41,13 +43,14 @@
 #' plot_hsim(simdata, plot_hindex = TRUE, plot_halpha = TRUE)
 plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
                       plot_toppapers = FALSE,
+                      plot_mindex = FALSE,
                       group_boundaries = NULL,
                       exclude_group_boundaries = FALSE,
                       plot_group_diffs = FALSE) {
 
-  if (!plot_hindex & !plot_halpha & !plot_toppapers) {
+  if (!plot_hindex & !plot_halpha & !plot_toppapers & !plot_mindex) {
     stop('at least one of the parameters plot_hindex, plot_halpha,
-         plot_toppapers must be TRUE')
+         plot_toppapers, plot_mindex must be TRUE')
   }
 
   if (typeof(simdata) != 'list' ||
@@ -55,6 +58,8 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
       length(unique(unlist(
         lapply(simdata, function(currentRun) {lapply(currentRun, length)})
       ))) != 1) {
+    # check if each run has same no of periods, and each period has
+    # same no of returned lists (hindex values, h alpha values, toppapers, etc.)
     stop('structure of simdata not correct; make sure to use the result
          returned by simulate_hindex')
   }
@@ -332,6 +337,80 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
     indexType <- 'toppapers'
 
     if (plot_hindex || plot_halpha) {
+      plotData <- rbind(plotData, data.frame(vals = vals, period = period,
+                                             hInitGroup = hInitGroup, indexType = indexType))
+    } else {
+      plotData <- data.frame(vals = vals, period = period,
+                             hInitGroup = hInitGroup, indexType = indexType)
+    }
+
+    if (plot_group_diffs) {
+      diffs <- vals[c(FALSE, TRUE)] - vals[c(TRUE, FALSE)]
+      plotData <- rbind(plotData,
+                        data.frame(vals = diffs, period = 1:nPeriods,
+                                   hInitGroup = groups + 1, indexType = indexType))
+    }
+
+  }
+
+  if (plot_mindex) {
+
+    nPeriods <- length(simdata$h[[1]])
+
+    mindexRunIndex <- 0
+    mindexMeansRuns <- foreach::foreach(mindexRunIndex = 1:length(simdata$mindex),
+                                           .combine = '+') %do% {
+
+                                             # mindexRunIndex <- mindexRunIndex + 1
+
+                                             if (groups > 1) {
+                                               groupsScientists <- lapply(1:groups, function(currentGroup) {
+                                                 # TODO
+                                                 if (exclude_group_boundaries) {
+                                                   currentScientists <- which(simdata$h[[mindexRunIndex]][[1]] >
+                                                                                groupBoundariesOrdered[[currentGroup]][1] &
+                                                                                simdata$h[[mindexRunIndex]][[1]] <
+                                                                                groupBoundariesOrdered[[currentGroup]][2])
+                                                   if (length(currentScientists) <= 0) {
+                                                     warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                                   }
+                                                 } else {
+                                                   currentScientists <- which(simdata$h[[mindexRunIndex]][[1]] >=
+                                                                                groupBoundariesOrdered[[currentGroup]][1] &
+                                                                                simdata$h[[mindexRunIndex]][[1]] <=
+                                                                                groupBoundariesOrdered[[currentGroup]][2])
+                                                   if (length(currentScientists) <= 0) {
+                                                     warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                                   }
+                                                 }
+                                                 return(currentScientists)
+                                               })
+                                             } else {
+                                               groupsScientists <- list(1:length(simdata$h[[1]][[1]]))
+                                             }
+
+                                             mindexPeriod <- NULL
+                                             runMeans <- foreach::foreach(mindexPeriod = simdata$mindex[[mindexRunIndex]], .combine = 'cbind') %do% {
+
+                                               # get mean for each group
+                                               runPeriodGroupMeans <- vapply(1:groups, FUN = function(currentGroup) {
+                                                 mean(mindexPeriod[groupsScientists[[currentGroup]]])
+                                               }, FUN.VALUE = double(1))
+                                               return(t(runPeriodGroupMeans))
+
+                                             }
+
+                                             return(runMeans)
+
+                                           }
+
+    mindexMeansRuns <- mindexMeansRuns / length(simdata$mindex)
+    vals <- t(mindexMeansRuns)
+    period <-rep(1:nPeriods, each = groups)
+    hInitGroup <- as.integer(round(rep(1:groups, nPeriods)))
+    indexType <- 'mindex'
+
+    if (plot_hindex || plot_halpha || plot_toppapers) {
       plotData <- rbind(plotData, data.frame(vals = vals, period = period,
                                              hInitGroup = hInitGroup, indexType = indexType))
     } else {
