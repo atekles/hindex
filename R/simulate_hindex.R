@@ -120,6 +120,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
   hValuesRuns <- list()
   hAlphaValuesRuns <- list()
   toppaperValuesRuns <- list()
+  mindexValuesRuns <- list()
 
   for (currentRun in 1:runs) {
 
@@ -143,6 +144,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
     names(hValues) <- c('period-0')
     toppaperValues <- list(simulationData$scientists$toppapers0)
     names(toppaperValues) <- c('period-0')
+    mindexValues <- list(simulationData$scientists$h0 / simulationData$scientistsAgeInit)
+    names(mindexValues) <- c('period-0')
     nextPaperId <- nrow(simulationData$papers) + 1
 
     ## iterate over periods
@@ -561,16 +564,20 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       hAlphaValues[[periodLabel]][newHAlphas$Group.1] <- newHAlphas$x
       rm(newHAlphas)
 
+      # calculate mindex values
+      mindexValues[[periodLabel]][newHs$Group.1] <- newHs$x / simulationData$scientistsAgeInit[newHs$Group.1]
+
     }
 
-    hValuesRuns[[paste('run-', currentRun, sep = '')]] <- hValues
-    hAlphaValuesRuns[[paste('run-', currentRun, sep = '')]] <- hAlphaValues
-    toppaperValuesRuns[[paste('run-', currentRun, sep = '')]] <-
-      toppaperValues
+    runLabel <- paste('run-', currentRun, sep = '')
+    hValuesRuns[[runLabel]] <- hValues
+    hAlphaValuesRuns[[runLabel]] <- hAlphaValues
+    toppaperValuesRuns[[runLabel]] <- toppaperValues
+    mindexValuesRuns[[runLabel]] <- mindexValues
 
   }
 
-  res <- list(hValuesRuns, hAlphaValuesRuns, toppaperValuesRuns)
+  res <- list(hValuesRuns, hAlphaValuesRuns, toppaperValuesRuns, mindexValuesRuns)
   names(res) <- c('h', 'h_alpha', 'top10_papers')
   return(res)
 
