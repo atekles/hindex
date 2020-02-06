@@ -37,9 +37,10 @@ test_that("initialization", {
                                      dpapers_pois_lambda = 2, alpha_share = .33)
 
   expect_equal(simulationData$scientists$scientist, 1:n)  # test if scientists ids are euqal to their position in data
-  expect_equal(length(simulationData), 2)
-  expect_equal(names(simulationData), c('papers', 'scientists'))
+  expect_equal(length(simulationData), 3)
+  expect_equal(names(simulationData), c('papers', 'scientists', 'scientistsAgeInit'))
   expect_equal(nrow(simulationData$scientists), n)
+  expect_equal(length(simulationData$scientistsAgeInit), n)
   expect_equal(names(simulationData$scientists), c('scientist', 'subgroup', 'h0', 'toppapers0', 'hAlpha0'))
   expect_equal(length(as.list(simulationData$scientists$h0)), n)
   expect_equal(length(as.list(simulationData$scientists$hAlpha0)), n)

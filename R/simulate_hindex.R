@@ -747,6 +747,17 @@ setup_simulation <- function(n, boost, boost_size = 0,
     colnames(papers) <- c('paper', 'scientist', 'age', 'citations', 'alpha', 'subgroup')
   }
 
+  # determine age of scientists
+  # scientists_age <- papers %>%
+  #   dplyr::group_by(scientist) %>%
+  #   summarise(age = max(age))
+  scientistsAgeInit <- aggregate(papers[ , 'age'],
+                              by = list(papers[ , 'scientist']),
+                              FUN = function(ages) {
+                                return(max(ages))
+                              })
+  names(scientistsAgeInit) <- c('scientist', 'age')
+
   # determine top 10% papers
 
   if (subgroups_distr == 1) {
@@ -800,10 +811,15 @@ setup_simulation <- function(n, boost, boost_size = 0,
     newScientists <- cbind(zeroPaperScientists, 0, 0)
     colnames(newScientists) <- c('scientist', 'subgroup', 'h0', 'toppapers0')
     scientists <- rbind(scientists, newScientists)
+    newAges <- cbind(zeroPaperScientists[ , 1], 0)
+    colnames(newAges) <- c('scientist', 'age')
+    scientistsAgeInit <- rbind(scientistsAgeInit, newAges)
   }
 
   # make sure scientists ids correspond to their indices in scientists data:
   scientists <- scientists[order(scientists$scientist), ]
+  # age of scientists ordered by scientist id
+  scientistsAgeInit <- scientistsAgeInit$age[order(scientistsAgeInit$scientist)]
 
   if (boost) {
     # determine merton bonus for papers
@@ -838,7 +854,8 @@ setup_simulation <- function(n, boost, boost_size = 0,
     scientists$productivity[scientists$scientist] <- scientists_prod
   }
 
-  return(list(papers = data.frame(papers), scientists = data.frame(scientists)))
+  return(list(papers = data.frame(papers), scientists = data.frame(scientists),
+         scientistsAgeInit = scientistsAgeInit))
 
 }
 
