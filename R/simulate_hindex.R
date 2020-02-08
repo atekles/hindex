@@ -14,12 +14,17 @@
 #' already published at the start of the simulation. Currently, the poisson
 #' distribution ("poisson") and the negative binomial distribution ("nbinomial")
 #' are supported.
+#' @param max_age_scientists Maximum age of scientists at the start of the simulation.
 #' @param dpapers_pois_lambda The distribution parameter for a poisson
 #' distribution of initial papers.
 #' @param dpapers_nbinom_dispersion Dispersion parameter of a negative binomial
 #' distribution of initial papers.
 #' @param dpapers_nbinom_mean Expected value of a negative binomial
 #' distribution of initial papers.
+#' @param productivity The share of papers published by the 20\% most
+#' productive agents in percentage. This parameter is only used for init_type = 'varage'.
+#' For init_type = 'fixage', diligence_share and diligence_corr can be used to
+#' control the productivity of scientists.
 #' @param distr_citations Distribution of citations the papers get. The expected
 #' value of this distribution follows a log-logistic function of time.
 #' Currently, the poisson distribution ("poisson") and the negative binomial
@@ -41,10 +46,11 @@
 #' This is implemented by assigning the agents with the highest h-index values
 #' to separate teams and randomly assigning the other agents to the teams.
 #' Otherwise, the collaborating agents are assigned to co-authorships at random.
-#' @param diligence_share The share of agents publishing in each period.
+#' @param diligence_share The share of agents publishing in each period. Only
+#' used for init_type = 'fixage'.
 #' @param diligence_corr The correlation between the initial h-index value and
 #' the probability to publish in a given period. This parameter only has an
-#' effect if diligence_share < 1.
+#' effect if diligence_share < 1. Only used for init_type = 'fixage'.
 #' @param selfcitations If this parameter is set to TRUE, a paper gets one
 #' additional citation if at least one of its authors has a h-index value
 #' that exceeds the number of previous citations of the paper by one or two.
@@ -82,7 +88,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                             max_age_scientists = 5,
                             dpapers_pois_lambda = 2,
                             dpapers_nbinom_dispersion = 1.1, dpapers_nbinom_mean = 2,
-                            init_productivity = 80,
+                            productivity = 80,
                             distr_citations = 'poisson', dcitations_speed = 2,
                             dcitations_peak = 3, dcitations_mean = 2,
                             dcitations_dispersion = 1.1,
@@ -98,13 +104,21 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
     stop('average teamsize has to be greater than 1')
   }
 
-  # TODO check if parameter specification is valid
+  if (init_type == 'fixage') {
+    if (!missing(productivity)) {
+      warning('productivity is not used for init_type fixage;
+              specify init_type varage in order to use productivity')
+    }
+  }
 
-  # TODO still relevant?
-  # merton effect
-  # papers get additional citations proportional to the highest h value
-  # among its authors (in previous period); currently the merton effect only
-  # comes into effect in the first period of the paper
+  if (init_type == 'varage') {
+    if (!missing(diligence_share) || !missing(diligence_corr)) {
+      warning('diligence_share and diligence_corr are not used for init_type varage;
+              specify init_type fixage in order to use diligence_share or diligence_corr')
+    }
+  }
+
+  # TODO check if parameter specification is valid
 
   dcitations_alpha <-  # the alpha in common log log notation
     dcitations_peak /
@@ -115,7 +129,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                             (dcitations_speed - 1))) /
                         ((1 + (dcitations_peak / dcitations_alpha) ^
                             dcitations_speed) ^ 2))
-  productivity <- exp(2.466973) * (init_productivity / 100) ^ 2.47832
+  productivity_param <- exp(2.466973) * (productivity / 100) ^ 2.47832
 
   hValuesRuns <- list()
   hAlphaValuesRuns <- list()
@@ -130,7 +144,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
        boost_size = boost_size, subgroups_distr = subgroups_distr,
        subgroup_advantage = subgroup_advantage, init_type = init_type,
        distr_initial_papers = distr_initial_papers,
-       max_age_scientists = max_age_scientists, productivity = productivity,
+       max_age_scientists = max_age_scientists, productivity_param = productivity_param,
        distr_citations = distr_citations, dcitations_alpha = dcitations_alpha,
        dcitations_dispersion = dcitations_dispersion,
        dcitations_loglog_factor = dcitations_loglog_factor,
@@ -224,12 +238,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         if (nTeamsGroup1 > 0) {
 
           scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup1])
-          #   scientistsHOrder: the index of scientists in the vector of active
-          #           scientists (not all scientists!!!), starting with the one
-          #           with the highest h index, then the one with the 2nd highest
-          #           h index etc.
 
-          # TODO fill entries in teamsAuthors for first subgroup with best authors in group 1
+          # fill entries in teamsAuthors for first subgroup with best authors in group 1
           foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
             teamsAuthors[[currentTeam]] <- activeScientistsGroup1[scientistsHOrder[currentTeam]]
             return(NULL)
@@ -319,8 +329,6 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       currentTeam <- 1
       newPapers <- foreach::foreach(currentTeam = 1:nTeams, .combine = 'rbind') %do% {
         # get indices of scientists in this team
-        # currentAuthors <- which(authorsTeams == currentTeam)
-        # TODO
         currentAuthors <- teamsAuthors[[currentTeam]]
         if (length(currentAuthors) == 0) {
           return(NULL)
@@ -359,7 +367,6 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
       # TODO next
       #
-      # calculate same variables as in do file
       # code review
       # documentation
       # test
@@ -586,7 +593,7 @@ setup_simulation <- function(n, boost, boost_size = 0,
                              subgroups_distr, subgroup_advantage,
                              init_type, distr_initial_papers,
                              max_age_scientists,
-                             productivity, distr_citations,
+                             productivity_param, distr_citations,
                              dcitations_loglog_factor, dcitations_alpha,
                              dcitations_speed, dcitations_dispersion,
                              dpapers_pois_lambda = NULL,
@@ -628,12 +635,11 @@ setup_simulation <- function(n, boost, boost_size = 0,
 
   } else if (init_type == 'varage') {
 
-    # TODO test
     # create productivity for each scientist
-    scientists_prod <- stats::runif(n) ^ productivity
+    scientists_prod <- stats::runif(n) ^ productivity_param
     # based on this productivity: decide how many papers
     noPapers <- vapply(scientists_prod, function(current_prod) {
-      length(which(stats::runif(max_age_scientists) < current_prod))
+      length(which(stats::runif(max_age_scientists) <= current_prod))
     }, FUN.VALUE = integer(1))
 
   } else {
@@ -768,11 +774,19 @@ setup_simulation <- function(n, boost, boost_size = 0,
 
   if (subgroups_distr == 1) {
     papersUnique <- unique(papers[ , c('paper', 'citations')])
-    # TODO test if length(papersUnique) == length(unique(paper))
+    # TODO ver
+    if (length(papersUnique) != length(unique(papers[ , c('paper')]))) {
+      stop('length(papersUnique) != no of distinct papers')
+    }
     p90 <- stats::quantile(papersUnique[ , 'citations'], prob = .9)
     top10Papers <- papers[ , 'citations'] > p90
   } else {
     papersUnique <- unique(papers[ , c('paper', 'subgroup', 'citations')])
+    # TODO ver
+    if (length(papersUnique) != length(unique(papers[ , c('paper')]))) {
+      # each paper must be assigned to exactly one subgroup
+      stop('length(papersUnique) != no of distinct papers')
+    }
     p90Group1 <- stats::quantile(
       papersUnique[papersUnique[ , 'subgroup'] == 1, 'citations'], prob = .9
     )
