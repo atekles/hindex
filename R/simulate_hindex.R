@@ -9,12 +9,25 @@
 #' @param periods Number of periods the agents collaborate across in each period.
 #' @param subgroups_distr Share of scientists in the first subgroup among all
 #' scientists
-#' @param init_type Type of the initial setup. May be "fixage" or "varage"
+#' @param subgroup_advantage Factor by which citations of papers
+#' published by agents of subgroup 2 exceed those of papers published by
+#' subgroup 1. This option is intended to reflect subdisciplines with
+#' different citation levels.
+#' @param subgroup_exchange Share of agents publishing (alone or in collaboration)
+#' with the other subgroup in each period. For example, when specifying
+#' subgroup_exchange = .1, 10\% of each subgroup join the other subgroup each period.
+#' @param init_type Type of the initial setup. May be 'fixage' or 'varage'.
+#' For init_type = 'fixage', all initial papers have the same age (specified
+#' by max_age_scientists). For init_type = 'varage', papers get a random age
+#' which is less than or equal to max_age_scientists.
 #' @param distr_initial_papers Distribution of the papers the scientists have
 #' already published at the start of the simulation. Currently, the poisson
 #' distribution ("poisson") and the negative binomial distribution ("nbinomial")
 #' are supported.
-#' @param max_age_scientists Maximum age of scientists at the start of the simulation.
+#' @param max_age_scientists Maximum age of scientists at the start of the
+#' simulation. For init_type = varage, a random age less than or equal to
+#' max_age_scientists is assigned to the initial papers. For init_type = fixage,
+#' all papers are max_age_scientists old.
 #' @param dpapers_pois_lambda The distribution parameter for a poisson
 #' distribution of initial papers.
 #' @param dpapers_nbinom_dispersion Dispersion parameter of a negative binomial
@@ -177,7 +190,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
             sqrt(1 - diligence_corr ^ 2) * stats::rnorm(length(hValues[['period-0']]))
           activeScientists <-
             which(diligence > stats::quantile(diligence,
-                                              prob = c(1 - diligence_share)))  # TODO (1 - diligence_share) instead of c(1 - diligence_share) ???
+                                              prob = (1 - diligence_share)))
         } else {
           activeScientists <- 1:nrow(simulationData$scientists)
         }
@@ -190,9 +203,10 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
       }
 
-      nTeams <- round(length(activeScientists) / coauthors)
+      nTeams <- length(activeScientists) / coauthors
       nTeamsGroup1 <- round(nTeams * subgroups_distr)
-      nTeamsGroup2 <- nTeams - nTeamsGroup1
+      nTeamsGroup2 <- round(nTeams * (1-subgroups_distr))
+      nTeams <- nTeamsGroup1 + nTeamsGroup2
 
       if (nTeamsGroup1 == 0) {
         warning('no teams in subgroup one; increase subgroups_distr or n')
@@ -224,11 +238,18 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         } else {
           fromTwoToOne <- stats::runif(length(activeScientistsGroup2)) < subgroup_exchange
         }
+        fromOneToTwoIds <- activeScientistsGroup1[fromOneToTwo]
+        fromTwoToOneIds <- activeScientistsGroup2[fromTwoToOne]
         activeScientistsGroup1 <-
-          c(activeScientistsGroup1[!fromOneToTwo], activeScientistsGroup2[fromTwoToOne])
+          c(activeScientistsGroup1[!fromOneToTwo], fromTwoToOneIds)
         activeScientistsGroup2 <-
-          c(activeScientistsGroup2[!fromTwoToOne], activeScientistsGroup1[fromOneToTwo])
+          c(activeScientistsGroup2[!fromTwoToOne], fromOneToTwoIds)
       }
+
+      # due to exchange, less scientists may be active in a group than teams are specified
+      # limit the number of teams to the number of scientists at max
+      nTeamsGroup1 <- min(nTeamsGroup1, length(activeScientistsGroup1))
+      nTeamsGroup2 <- min(nTeamsGroup2, length(activeScientistsGroup2))
 
       # for each team one entry (will be filled with author ids)
       teamsAuthors <- list()
@@ -326,6 +347,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         stop('length(newPaperIds) != length(newPapers')
       }
 
+      # TODO next
       currentTeam <- 1
       newPapers <- foreach::foreach(currentTeam = 1:nTeams, .combine = 'rbind') %do% {
         # get indices of scientists in this team
@@ -411,6 +433,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
       # get citations for all papers (not just the new ones...), considering their age
 
+      papers_age_subgroup <- unique(simulationData$papers[ , c('paper', 'age', 'subgroup')])
       if (distr_citations == 'uniform') {
         stop('uniform citation distributino not supported any more')
         # newPapersCitations <-
@@ -418,17 +441,17 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       } else if (distr_citations == 'poisson') {
 
         currentLambdas <- dcitations_loglog_factor *
-          (((dcitations_speed / dcitations_alpha) * ((simulationData$papers$age / dcitations_alpha) ^
+          (((dcitations_speed / dcitations_alpha) * ((papers_age_subgroup$age / dcitations_alpha) ^
                                                        (dcitations_speed - 1))) /
-             ((1 + (simulationData$papers$age / dcitations_alpha) ^ dcitations_speed) ^ 2))
+             ((1 + (papers_age_subgroup$age / dcitations_alpha) ^ dcitations_speed) ^ 2))
         newCitations <- stats::rpois(length(currentLambdas), currentLambdas)
 
       } else if (distr_citations == 'nbinomial') {
 
         currentExps <- dcitations_loglog_factor *
-          (((dcitations_speed / dcitations_alpha) * ((simulationData$papers$age / dcitations_alpha) ^
+          (((dcitations_speed / dcitations_alpha) * ((papers_age_subgroup$age / dcitations_alpha) ^
                                                        (dcitations_speed - 1))) /
-             ((1 + (simulationData$papers$age / dcitations_alpha) ^ dcitations_speed) ^ 2))
+             ((1 + (papers_age_subgroup$age / dcitations_alpha) ^ dcitations_speed) ^ 2))
         currentPs <- currentExps / (currentExps * dcitations_dispersion)
         currentNs <- (currentExps * currentPs) / (1 - currentPs)
         newCitations <- stats::rnbinom(length(currentExps), size = currentNs, prob = currentPs)
@@ -438,13 +461,13 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       }
 
       # add subgroup advantage
-      group2Papers <- simulationData$papers$scientist %in%
-        simulationData$scientists$scientist[simulationData$scientists$subgroup == 2]
+      group2Papers <- papers_age_subgroup$subgroup == 2
       newCitations[group2Papers] <- newCitations[group2Papers] * subgroup_advantage
 
       # add new citations to the papers
+      unique_paper_matches <- match(simulationData$papers$paper, papers_age_subgroup$paper)
       simulationData$papers$citations <-
-        simulationData$papers$citations + newCitations
+        simulationData$papers$citations + newCitations[unique_paper_matches]
 
       # add merton bonus if specified
       if (boost) {
@@ -503,8 +526,11 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         papersUnique <- unique(simulationData$papers[ , c('paper', 'citations')])
         #   -> this step is necessary, because simulationData$papers$citations > p90
         #       would be on the level of authorships
-        # TODO verify that length(papersUnique) == length(unique(paper))
-        p90 <- stats::quantile(papersUnique[ , 'citations'], prob = .9)
+        # TODO ver
+        if (nrow(papersUnique) != length(unique(simulationData$papers[ , c('paper')]))) {
+          stop('nrow(papersUnique) != no of distinct papers 3')
+        }
+        p90 <- stats::quantile(papersUnique[ , 'citations'], prob = .9, type = 1)
         top10Papers <- simulationData$papers$paper[simulationData$papers$citations > p90]
         toppapersIndices <- simulationData$papers$paper %in% top10Papers
       } else {
@@ -513,11 +539,17 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                                                            c('paper', 'citations')])
         papersUniqueGroup2 <- unique(simulationData$papers[simulationData$papers$subgroup == 2,
                                                            c('paper', 'citations')])
+        # TODO ver
+        if ((nrow(papersUniqueGroup1) + nrow(papersUniqueGroup2)) !=
+            length(unique(simulationData$papers[ , c('paper')]))) {
+          # each paper must be assigned to exactly one subgroup
+          stop('nrow(papersUniqueGroup1) + nrow(papersUniqueGroup2) != no of distinct papers')
+        }
         p90Group1 <- stats::quantile(
-          papersUniqueGroup1[ , 'citations'], prob = .9
+          papersUniqueGroup1[ , 'citations'], prob = .9, type = 1
         )
         p90Group2 <- stats::quantile(
-          papersUniqueGroup2[ , 'citations'], prob = .9
+          papersUniqueGroup2[ , 'citations'], prob = .9, type = 1
         )
         top10PapersGroup1 <-
           intersect(
@@ -633,14 +665,25 @@ setup_simulation <- function(n, boost, boost_size = 0,
       stop('paper distribution not supported')
     }
 
+    papers_age <- sample(max_age_scientists, sum(noPapers), replace = TRUE)
+
   } else if (init_type == 'varage') {
 
     # create productivity for each scientist
     scientists_prod <- stats::runif(n) ^ productivity_param
-    # based on this productivity: decide how many papers
-    noPapers <- vapply(scientists_prod, function(current_prod) {
-      length(which(stats::runif(max_age_scientists) <= current_prod))
-    }, FUN.VALUE = integer(1))
+    # assign random age to each scientist
+    scientists_age <- sample(max_age_scientists, n, replace = TRUE)
+    # decide in which periods the scientists have published --> paper + age
+    papers_age_list <- purrr::map2(scientists_age, scientists_prod, function(current_age, current_prod) {
+      which(stats::runif(current_age) <= current_prod)
+    })
+    noPapers <- vapply(papers_age_list, length, integer(1))
+    current_scientist_papers <- NULL
+    papers_age <- foreach::foreach(current_scientist_papers = papers_age_list,
+                                   .combine = c) %do% {
+      return(current_scientist_papers)
+    }
+    rm(current_scientist_papers)
 
   } else {
     stop('init_type not supported')
@@ -651,11 +694,7 @@ setup_simulation <- function(n, boost, boost_size = 0,
   initialScientist <- 1
 
   # calculate distribution parameters
-  if (init_type == 'fixage') {
-    maxPaperAge <- 5
-  } else {
-    maxPaperAge <- max_age_scientists
-  }
+  maxPaperAge <- max_age_scientists
   currentPaperAge <- 1
   if (distr_citations == 'uniform') {
     stop('uniform citation distribution not supported')
@@ -695,8 +734,7 @@ setup_simulation <- function(n, boost, boost_size = 0,
   }
 
   papersSubgroup <- rep(subgroups, noPapers)
-  papers <- cbind(rep(1:n, noPapers),
-                  sample(maxPaperAge, sum(noPapers), replace = TRUE))
+  papers <- cbind(rep(1:n, noPapers), papers_age)
   zeroPapers <- which(noPapers == 0)
   zeroPaperScientists <- cbind(zeroPapers, subgroups[zeroPapers])
 
@@ -749,8 +787,7 @@ setup_simulation <- function(n, boost, boost_size = 0,
 
   }
 
-  # define alpha papers
-
+  # combine, name columns and define alpha papers
   if (boost) {
     papers <- cbind(1:nrow(papers), papers, stats::runif(nrow(papers)) < alpha_share, 0, papersSubgroup)
     colnames(papers) <- c('paper', 'scientist', 'age', 'citations', 'alpha', 'merton', 'subgroup')
@@ -760,10 +797,7 @@ setup_simulation <- function(n, boost, boost_size = 0,
   }
 
   # determine age of scientists
-  # scientists_age <- papers %>%
-  #   dplyr::group_by(scientist) %>%
-  #   summarise(age = max(age))
-  scientistsAgeInit <- aggregate(papers[ , 'age'],
+  scientistsAgeInit <- stats::aggregate(papers[ , 'age'],
                               by = list(papers[ , 'scientist']),
                               FUN = function(ages) {
                                 return(max(ages))
@@ -773,25 +807,27 @@ setup_simulation <- function(n, boost, boost_size = 0,
   # determine top 10% papers
 
   if (subgroups_distr == 1) {
+    # unique stuff: not absolutely necessary here, but consistent with
+    # top paper detection in subsequent simulation runs
     papersUnique <- unique(papers[ , c('paper', 'citations')])
     # TODO ver
-    if (length(papersUnique) != length(unique(papers[ , c('paper')]))) {
-      stop('length(papersUnique) != no of distinct papers')
+    if (nrow(papersUnique) != length(unique(papers[ , c('paper')]))) {
+      stop('length(papersUnique) != no of distinct papers 1')
     }
-    p90 <- stats::quantile(papersUnique[ , 'citations'], prob = .9)
+    p90 <- stats::quantile(papersUnique[ , 'citations'], prob = .9, type = 1)
     top10Papers <- papers[ , 'citations'] > p90
   } else {
     papersUnique <- unique(papers[ , c('paper', 'subgroup', 'citations')])
     # TODO ver
-    if (length(papersUnique) != length(unique(papers[ , c('paper')]))) {
+    if (nrow(papersUnique) != length(unique(papers[ , c('paper')]))) {
       # each paper must be assigned to exactly one subgroup
-      stop('length(papersUnique) != no of distinct papers')
+      stop('length(papersUnique) != no of distinct papers 2')
     }
     p90Group1 <- stats::quantile(
-      papersUnique[papersUnique[ , 'subgroup'] == 1, 'citations'], prob = .9
+      papersUnique[papersUnique[ , 'subgroup'] == 1, 'citations'], prob = .9, type = 1
     )
     p90Group2 <- stats::quantile(
-      papersUnique[papersUnique[ , 'subgroup'] == 2, 'citations'], prob = .9
+      papersUnique[papersUnique[ , 'subgroup'] == 2, 'citations'], prob = .9, type = 1
     )
     top10PapersGroup1 <-
       papers[ , 'citations'] > p90Group1 & papers[ , 'subgroup'] == 1
@@ -802,6 +838,13 @@ setup_simulation <- function(n, boost, boost_size = 0,
 
   # calculate h
 
+  # assumption: all of a scientist's papers published in one subgroup
+  # this is true because paper subgroups are determined only based on
+  # scientist subgroup for initial setup
+  # TODO ver
+  if (nrow(unique(papers[ , c('scientist', 'subgroup')])) != length(unique(papers[ , 'scientist']))) {
+    stop('scientists with papers in multiple subgroups in initial setup')
+  }
   scientists <- stats::aggregate(papers[ , 'citations'],
                           by = list(papers[ , 'scientist'], papers[ , 'subgroup']),
                           FUN = function(citations) {
@@ -836,10 +879,18 @@ setup_simulation <- function(n, boost, boost_size = 0,
     scientistsAgeInit <- rbind(scientistsAgeInit, newAges)
   }
 
-  # make sure scientists ids correspond to their indices in scientists data:
+  # make sure scientists' ids correspond to their indices in scientists data:
   scientists <- scientists[order(scientists$scientist), ]
   # age of scientists ordered by scientist id
+  # TODO ver
+  if (!all(scientists$scientist == scientistsAgeInit$scientist[order(scientistsAgeInit$scientist)])) {
+    stop('scientist ids in scientists and scientistsAgeInit do not match')
+  }
   scientistsAgeInit <- scientistsAgeInit$age[order(scientistsAgeInit$scientist)]
+  # TODO ver
+  if (!all(scientists$scientist == 1:n)) {
+    stop('not exactly one row in scientists for each agent')
+  }
 
   if (boost) {
     # determine merton bonus for papers
@@ -871,7 +922,7 @@ setup_simulation <- function(n, boost, boost_size = 0,
 
   # add productivity of scientists
   if (init_type == 'varage') {
-    scientists$productivity[scientists$scientist] <- scientists_prod
+    scientists$productivity <- scientists_prod
   }
 
   return(list(papers = data.frame(papers), scientists = data.frame(scientists),

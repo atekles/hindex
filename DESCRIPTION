@@ -25,5 +25,6 @@ Suggests:
 Imports: 
     foreach,
     stats,
-    ggplot2
+    ggplot2,
+    purrr
 RoxygenNote: 6.1.1

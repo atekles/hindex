@@ -9,7 +9,7 @@ simulate_hindex(runs = 1, n = 100, periods = 20,
   init_type = "fixage", distr_initial_papers = "poisson",
   max_age_scientists = 5, dpapers_pois_lambda = 2,
   dpapers_nbinom_dispersion = 1.1, dpapers_nbinom_mean = 2,
-  init_productivity = 80, distr_citations = "poisson",
+  productivity = 80, distr_citations = "poisson",
   dcitations_speed = 2, dcitations_peak = 3, dcitations_mean = 2,
   dcitations_dispersion = 1.1, coauthors = 5,
   strategic_teams = FALSE, diligence_share = 1, diligence_corr = 0,
@@ -26,12 +26,29 @@ simulate_hindex(runs = 1, n = 100, periods = 20,
 \item{subgroups_distr}{Share of scientists in the first subgroup among all
 scientists}
 
-\item{init_type}{Type of the initial setup. May be "fixage" or "varage"}
+\item{subgroup_advantage}{Factor by which citations of papers
+published by agents of subgroup 2 exceed those of papers published by
+subgroup 1. This option is intended to reflect subdisciplines with
+different citation levels.}
+
+\item{subgroup_exchange}{Share of agents publishing (alone or in collaboration)
+with the other subgroup in each period. For example, when specifying
+subgroup_exchange = .1, 10\% of each subgroup join the other subgroup each period.}
+
+\item{init_type}{Type of the initial setup. May be 'fixage' or 'varage'.
+For init_type = 'fixage', all initial papers have the same age (specified
+by max_age_scientists). For init_type = 'varage', papers get a random age
+which is less than or equal to max_age_scientists.}
 
 \item{distr_initial_papers}{Distribution of the papers the scientists have
 already published at the start of the simulation. Currently, the poisson
 distribution ("poisson") and the negative binomial distribution ("nbinomial")
 are supported.}
+
+\item{max_age_scientists}{Maximum age of scientists at the start of the
+simulation. For init_type = varage, a random age less than or equal to
+max_age_scientists is assigned to the initial papers. For init_type = fixage,
+all papers are max_age_scientists old.}
 
 \item{dpapers_pois_lambda}{The distribution parameter for a poisson
 distribution of initial papers.}
@@ -41,6 +58,11 @@ distribution of initial papers.}
 
 \item{dpapers_nbinom_mean}{Expected value of a negative binomial
 distribution of initial papers.}
+
+\item{productivity}{The share of papers published by the 20\% most
+productive agents in percentage. This parameter is only used for init_type = 'varage'.
+For init_type = 'fixage', diligence_share and diligence_corr can be used to
+control the productivity of scientists.}
 
 \item{distr_citations}{Distribution of citations the papers get. The expected
 value of this distribution follows a log-logistic function of time.
@@ -70,11 +92,12 @@ This is implemented by assigning the agents with the highest h-index values
 to separate teams and randomly assigning the other agents to the teams.
 Otherwise, the collaborating agents are assigned to co-authorships at random.}
 
-\item{diligence_share}{The share of agents publishing in each period.}
+\item{diligence_share}{The share of agents publishing in each period. Only
+used for init_type = 'fixage'.}
 
 \item{diligence_corr}{The correlation between the initial h-index value and
 the probability to publish in a given period. This parameter only has an
-effect if diligence_share < 1.}
+effect if diligence_share < 1. Only used for init_type = 'fixage'.}
 
 \item{selfcitations}{If this parameter is set to TRUE, a paper gets one
 additional citation if at least one of its authors has a h-index value
