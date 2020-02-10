@@ -492,13 +492,6 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
           stop('papers assigned to more than one subgroup')
         }
 
-        # TODO next
-        #
-        # check if old function calls are still possible
-        # test calls from (both) papers
-        # compare results with stata output
-        # code review plot_hsim
-
         if (boost) {
           colnames(newPapers) <- c( 'paper', 'scientist','age', 'citations', 'alpha', 'merton', 'subgroup')
         } else {
