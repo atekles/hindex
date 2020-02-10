@@ -13,11 +13,13 @@
 #' @param plot_mindex If this parameter is set to TRUE, the mindex values are
 #' plotted.
 #' @param subgroups If this parameter is set to TRUE, the subgroups in simdata
-#' are considered in the visualization.
-#' @param group_boundaries A list of vectors or a vector of integers specifying
-#' the groups for plotting the h-index/h-alpha values separately for each of
-#' these groups. The groups are defined based on the initial h-index of the
-#' agents. If a list is specified, each element must be a vector of length 2
+#' are considered for grouping plotting the index values separately for each of
+#' these groups.
+#' @param group_boundaries Alternative to subgroups for specifying groups of
+#' scientists for plotting the index values separately for these groups. Here,
+#' the groups are specified based on the initial h-index of the agents. group_boundaries
+#' must be a list of vectors or a vector of integers specifying the groups.
+#' If a list is specified, each element must be a vector of length 2
 #' representing the lower and the upper bound for the initial h-index (if the
 #' boundaries are included in the corresponding intervals is specified by the
 #' exclude_group_boundaries parameter).

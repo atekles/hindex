@@ -5,7 +5,7 @@
 \title{Plot the result of simulate_hindex}
 \usage{
 plot_hsim(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
-  plot_toppapers = FALSE, plot_mindex = FALSE,
+  plot_toppapers = FALSE, plot_mindex = FALSE, subgroups = FALSE,
   group_boundaries = NULL, exclude_group_boundaries = FALSE,
   plot_group_diffs = FALSE)
 }
@@ -24,6 +24,9 @@ top-10\% papers are plotted.}
 
 \item{plot_mindex}{If this parameter is set to TRUE, the mindex values are
 plotted.}
+
+\item{subgroups}{If this parameter is set to TRUE, the subgroups in simdata
+are considered in the visualization.}
 
 \item{group_boundaries}{A list of vectors or a vector of integers specifying
 the groups for plotting the h-index/h-alpha values separately for each of
