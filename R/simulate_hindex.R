@@ -111,10 +111,29 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
                             boost = FALSE, boost_size = .1,
                             alpha_share = .33) {
 
-  # dcitations_speed: in common log log notation: beta
+  # check parameters
+  if (runs <= 0 || runs %% 1 != 0) {
+    stop('runs must be an integer > 0')
+  }
 
-  if (coauthors <= 1) {
-    stop('average teamsize has to be greater than 1')
+  if (n <= 1 || n %% 1 != 0) {
+    stop('n must be an integer > 1')
+  }
+
+  if (periods <= 0 || periods %% 1 != 0) {
+    stop('periods must be an integer > 0')
+  }
+
+  if (subgroups_distr <= 0 || subgroups_distr > 1) {
+    stop('subgroups_distr must be > 0 and <= 1')
+  }
+
+  if (subgroup_exchange < 0 || subgroup_exchange > 1) {
+    stop('subgroup_exchange must be between 0 and 1')
+  }
+
+  if (coauthors <= 1 || coauthors %% 1 != 0) {
+    stop('average teamsize has to be an integer greater than 1')
   }
 
   if (init_type == 'fixage') {
@@ -122,17 +141,73 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       warning('productivity is not used for init_type fixage;
               specify init_type varage in order to use productivity')
     }
-  }
-
-  if (init_type == 'varage') {
+  } else if (init_type == 'varage') {
     if (!missing(diligence_share) || !missing(diligence_corr)) {
       warning('diligence_share and diligence_corr are not used for init_type varage;
               specify init_type fixage in order to use diligence_share or diligence_corr')
     }
+  } else {
+    stop('init_type not supported')
   }
 
-  # TODO check if parameter specification is valid
+  if (distr_initial_papers != 'poisson' && distr_initial_papers != 'nbinomial') {
+    stop('distr_initial_papers must be either \'poisson\' or \'binomial\'')
+  }
 
+  if (max_age_scientists < 1 || max_age_scientists %% 1 != 0) {
+    stop('max_age_scientists must be an integer >= 1')
+  }
+
+  if (dpapers_pois_lambda <= 0) {
+    stop('dpapers_pois_lambda must be > 0')
+  }
+
+  if (dpapers_nbinom_dispersion <= 0) {
+    stop('dpapers_nbinom_dispersion must be > 0')
+  }
+
+  if (dpapers_nbinom_mean <= 0) {
+    stop('dpapers_nbinom_mean must be > 0')
+  }
+
+  if (productivity < 0 || productivity > 100) {
+    stop('productivity must be between 0 an 100')
+  }
+
+  if (distr_citations != 'poisson' && distr_citations != 'nbinomial') {
+    stop('distr_citations must be either \'poisson\' or \'binomial\'')
+  }
+
+  if (dcitations_speed <= 1) {
+    stop('dcitations_speed must be > 1')
+  }
+
+  if (dcitations_peak <= 0) {
+    stop('dcitations_peak must be > 0')
+  }
+
+  if (dcitations_mean <= 0) {
+    stop('dcitations_mean must be > 0')
+  }
+
+  if (dcitations_dispersion < 1) {
+    stop('dcitations_dispersion must be >= 1')
+  }
+
+  if (diligence_share < 0 || diligence_share > 1) {
+    stop('diligence_share must be between 0 and 1')
+  }
+
+  if (diligence_corr < 0 || diligence_corr > 1) {
+    stop('diligence_corr must be between 0 and 1')
+  }
+
+  if (alpha_share < 0 || alpha_share > 1) {
+    stop('alpha_share must be between 0 and 1')
+  }
+
+  # some constant distribution/productivity parameters
+  # dcitations_speed: in common log log notation: beta
   dcitations_alpha <-  # the alpha in common log log notation
     dcitations_peak /
     (((dcitations_speed - 1) / (dcitations_speed + 1)) ^ (1 / dcitations_speed))
@@ -171,15 +246,51 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
     names(hValues) <- c('period-0')
     toppaperValues <- list(simulationData$scientists$toppapers0)
     names(toppaperValues) <- c('period-0')
-    mindexValues <- list(simulationData$scientists$h0 / simulationData$scientistsAgeInit)
+    mindexValues <- list(simulationData$scientists$h0[simulationData$scientistsAgeInit > 0] /
+                           simulationData$scientistsAgeInit[simulationData$scientistsAgeInit > 0])
     names(mindexValues) <- c('period-0')
     nextPaperId <- nrow(simulationData$papers) + 1
+
+    initial_papers <- simulationData$papers$paper
 
     ## iterate over periods
 
     for (currentPeriod in 1:periods) {
 
       simulationData$papers$age <- simulationData$papers$age + 1
+
+      # update alpha authors if specified
+      # this is done before creating new papers, because the alpha authors
+      # are determined for new papers anyway --> avoid doing this twice
+      # for the new papers
+      cfun <- function(a, b) {return(NULL)}
+      if (update_alpha_authors) {
+        currentPaper <- 0
+        # do not update alpha and merton for the initial papers because
+        # the max h-index for these author teams are (partly) assigned randomly
+        # (assuming that there are co-authors not included in the simulation as agents)
+        period_papers <- setdiff(unique(simulationData$papers$paper), initial_papers)
+        foreach::foreach(currentPaper = period_papers,
+                         .combine = 'cfun') %do% {
+
+                           paperIndices <- which(simulationData$papers$paper == currentPaper)
+
+                           currentScientists <- simulationData$papers$scientist[paperIndices]
+                           maxH <- max(hValues[[length(hValues)]][currentScientists])
+                           alphaAuthors <- hValues[[length(hValues)]][currentScientists] == maxH
+
+                           # scientistsMatches <-
+                           #   match(currentScientists, simulationData$papers$scientist[paperIndices])
+                           simulationData$papers$alpha[paperIndices] <- alphaAuthors
+                           if (boost) {
+                             simulationData$papers$merton[paperIndices] <-
+                               round(boost_size * maxH)
+                           }
+
+                           return(NULL)
+
+                         }
+      }
 
       # determine author teams
 
@@ -206,17 +317,15 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       nTeams <- length(activeScientists) / coauthors
       nTeamsGroup1 <- round(nTeams * subgroups_distr)
       nTeamsGroup2 <- round(nTeams * (1-subgroups_distr))
-      nTeams <- nTeamsGroup1 + nTeamsGroup2
 
       if (nTeamsGroup1 == 0) {
-        warning('no teams in subgroup one; increase subgroups_distr or n')
+        warning('no teams in subgroup one (before subgroup exchange); increase subgroups_distr or n')
       }
       if (subgroups_distr < 1 && nTeamsGroup2 == 0) {
-        warning('no teams in subgroup two; decrease subgroups_distr or increase n')
+        warning('no teams in subgroup two (before subgroup exchange); decrease subgroups_distr or increase n')
       }
 
       # indices of active scientists in subgroup 1 in simulationData$scientists
-      # TODO test
       activeScientistsGroup1 <-
         activeScientists[
           which(simulationData$scientists$subgroup[activeScientists] == 1)]
@@ -250,185 +359,153 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       # limit the number of teams to the number of scientists at max
       nTeamsGroup1 <- min(nTeamsGroup1, length(activeScientistsGroup1))
       nTeamsGroup2 <- min(nTeamsGroup2, length(activeScientistsGroup2))
+      nTeams <- nTeamsGroup1 + nTeamsGroup2   # correct for rounding errors
 
-      # for each team one entry (will be filled with author ids)
-      teamsAuthors <- list()
+      # if nTeams == 0: no new papers to create
+      if (nTeams > 0) {
 
-      if (strategic_teams) {
+        # for each team one entry (will be filled with author ids)
+        teamsAuthors <- list()
 
-        if (nTeamsGroup1 > 0) {
+        if (strategic_teams) {
 
-          scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup1])
+          if (nTeamsGroup1 > 0) {
 
-          # fill entries in teamsAuthors for first subgroup with best authors in group 1
-          foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
-            teamsAuthors[[currentTeam]] <- activeScientistsGroup1[scientistsHOrder[currentTeam]]
-            return(NULL)
+            scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup1])
+
+            # fill entries in teamsAuthors for first subgroup with best authors in group 1
+            foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
+              teamsAuthors[[currentTeam]] <- activeScientistsGroup1[scientistsHOrder[currentTeam]]
+              return(NULL)
+            }
+
+            # for each author in group 1, assign team id randomly
+            authorsTeams1 <- sample(nTeamsGroup1, length(activeScientistsGroup1) - nTeamsGroup1, replace = TRUE)
+            # fill teams based on these random team ids
+            foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
+              teamsAuthors[[currentTeam]] <- c(teamsAuthors[[currentTeam]],
+                                               activeScientistsGroup1[
+                                                 scientistsHOrder[(nTeamsGroup1 + 1):length(activeScientistsGroup1)][
+                                                   authorsTeams1 == currentTeam]]
+              )
+              return(NULL)
+            }
+
           }
 
-          # for each author in group 1, assign team id randomly
-          authorsTeams1 <- sample(nTeamsGroup1, length(activeScientistsGroup1) - nTeamsGroup1, replace = TRUE)
-          # fill teams based on these random team ids
-          foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
-            teamsAuthors[[currentTeam]] <- c(teamsAuthors[[currentTeam]],
-                                             activeScientistsGroup1[
-                                               scientistsHOrder[(nTeamsGroup1 + 1):length(activeScientistsGroup1)][
-                                                 authorsTeams1 == currentTeam]]
-            )
-            return(NULL)
+          # same for scientists in subgroup 2; if no subgroup2,
+          # the following lines don't change anything
+          if (nTeamsGroup2 > 0) {
+            scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup2])
+            foreach::foreach(currentTeam = 1:nTeamsGroup2) %do% {
+              teamsAuthors[[currentTeam + nTeamsGroup1]] <- activeScientistsGroup2[scientistsHOrder[currentTeam]]
+              return(NULL)
+            }
+            authorsTeams2 <- sample(nTeamsGroup2, length(activeScientistsGroup2) - nTeamsGroup2, replace = TRUE)
+            foreach::foreach(currentTeam = 1:nTeamsGroup2) %do% {
+              teamsAuthors[[currentTeam + nTeamsGroup1]] <- c(teamsAuthors[[currentTeam + nTeamsGroup1]],
+                                                              activeScientistsGroup2[
+                                                                scientistsHOrder[(nTeamsGroup2 + 1):length(activeScientistsGroup2)][
+                                                                  authorsTeams2 == currentTeam]]
+              )
+              return(NULL)
+            }
           }
 
-        }
-
-        # same for scientists in subgroup 2; if no subgroup2,
-        # the following lines don't change anything
-        if (nTeamsGroup2 > 0) {
-          scientistsHOrder <- order(-hValues[[length(hValues)]][activeScientistsGroup2])
-          foreach::foreach(currentTeam = 1:nTeamsGroup2) %do% {
-            teamsAuthors[[currentTeam + nTeamsGroup1]] <- activeScientistsGroup2[scientistsHOrder[currentTeam]]
-            return(NULL)
-          }
-          authorsTeams2 <- sample(nTeamsGroup2, length(activeScientistsGroup2) - nTeamsGroup2, replace = TRUE)
-          foreach::foreach(currentTeam = 1:nTeamsGroup2) %do% {
-            teamsAuthors[[currentTeam + nTeamsGroup1]] <- c(teamsAuthors[[currentTeam + nTeamsGroup1]],
-                                                          activeScientistsGroup2[
-                                                            scientistsHOrder[(nTeamsGroup2 + 1):length(activeScientistsGroup2)][
-                                                              authorsTeams2 == currentTeam]]
-                                                          )
-            return(NULL)
-          }
-        }
-
-      } else {
-
-        if (nTeamsGroup1 > 0) {
-          authorsTeams1 <- sample(nTeamsGroup1, length(activeScientistsGroup1), replace = TRUE)
-          foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
-            teamsAuthors[[currentTeam]] <- activeScientistsGroup1[authorsTeams1 == currentTeam]
-            return(NULL)
-          }
-        }
-
-        if (nTeamsGroup2 > 0) {
-          authorsTeams2 <- sample(nTeamsGroup2, length(activeScientistsGroup2), replace = TRUE)
-          foreach::foreach(currentTeam = 1:nTeamsGroup2) %do% {
-            teamsAuthors[[currentTeam + nTeamsGroup1]] <- activeScientistsGroup2[authorsTeams2 == currentTeam]
-            return(NULL)
-          }
-        }
-
-      }
-
-      # TODO ver
-      # if nTeams1 > 0: all activeScientists1 in unlist(teamsAuthors)
-      if (nTeamsGroup1 > 0 && !all(activeScientistsGroup1 %in% unlist(teamsAuthors))) {
-        stop('not all active scientists assigned to teams in subgroup 1')
-      }
-      # if nTeams2 > 0: all activeScientists2 in unlist(teamsAuthors)
-      if (nTeamsGroup2 > 0 && !all(activeScientistsGroup2 %in% unlist(teamsAuthors))) {
-        stop('not all active scientists assigned to teams in subgroup 2')
-      }
-      # length(teamsAuthors) == nTeams == nTeams1 + nTeams2
-      if (length(teamsAuthors) != nTeams) {
-        # if a team has no authors assigned (can happen because team memberships are assigned randomly with replacement)
-        stop('no teams does not equal the no of expected teams')
-      }
-      # no author is assigned to both subgroups
-      if (nTeamsGroup1 > 0 && nTeamsGroup2 > 0 && length(intersect(unlist(teamsAuthors[1:nTeamsGroup1]), unlist(teamsAuthors[(nTeamsGroup1 + 1):(nTeams)]))) != 0) {
-        stop('some authors are assigned to multiple subgroups')
-      }
-
-      # add paper for each team, intial age = 1
-      newPaperIds <- nextPaperId:(nextPaperId + nTeams - 1)
-      nextPaperId <- nextPaperId + nTeams
-
-      # TODO ver
-      if (length(newPaperIds) != nTeams) {
-        stop('length(newPaperIds) != length(newPapers')
-      }
-
-      # TODO next
-      currentTeam <- 1
-      newPapers <- foreach::foreach(currentTeam = 1:nTeams, .combine = 'rbind') %do% {
-        # get indices of scientists in this team
-        currentAuthors <- teamsAuthors[[currentTeam]]
-        if (length(currentAuthors) == 0) {
-          return(NULL)
-        }
-        maxH <- max(hValues[[length(hValues)]][currentAuthors])
-        alphaAuthors <-
-          hValues[[length(hValues)]][currentAuthors] == maxH
-        #     -> more than one alpha author possible?
-
-        if (currentTeam <= nTeamsGroup1) {
-          currentSubgroup <- 1
         } else {
-          currentSubgroup <- 2
+
+          if (nTeamsGroup1 > 0) {
+            authorsTeams1 <- sample(nTeamsGroup1, length(activeScientistsGroup1), replace = TRUE)
+            foreach::foreach(currentTeam = 1:nTeamsGroup1) %do% {
+              teamsAuthors[[currentTeam]] <- activeScientistsGroup1[authorsTeams1 == currentTeam]
+              return(NULL)
+            }
+          }
+
+          if (nTeamsGroup2 > 0) {
+            authorsTeams2 <- sample(nTeamsGroup2, length(activeScientistsGroup2), replace = TRUE)
+            foreach::foreach(currentTeam = 1:nTeamsGroup2) %do% {
+              teamsAuthors[[currentTeam + nTeamsGroup1]] <- activeScientistsGroup2[authorsTeams2 == currentTeam]
+              return(NULL)
+            }
+          }
+
         }
+
+        # TODO ver
+        # if nTeams1 > 0: all activeScientists1 in unlist(teamsAuthors)
+        if (nTeamsGroup1 > 0 && !all(activeScientistsGroup1 %in% unlist(teamsAuthors))) {
+          stop('not all active scientists assigned to teams in subgroup 1')
+        }
+        # if nTeams2 > 0: all activeScientists2 in unlist(teamsAuthors)
+        if (nTeamsGroup2 > 0 && !all(activeScientistsGroup2 %in% unlist(teamsAuthors))) {
+          stop('not all active scientists assigned to teams in subgroup 2')
+        }
+        # length(teamsAuthors) == nTeams == nTeams1 + nTeams2
+        if (length(teamsAuthors) != nTeams) {
+          # if a team has no authors assigned (can happen because team memberships are assigned randomly with replacement)
+          stop('no teams does not equal the no of expected teams')
+        }
+        # no author is assigned to both subgroups
+        if (nTeamsGroup1 > 0 && nTeamsGroup2 > 0 && length(intersect(unlist(teamsAuthors[1:nTeamsGroup1]), unlist(teamsAuthors[(nTeamsGroup1 + 1):(nTeams)]))) != 0) {
+          stop('some authors are assigned to multiple subgroups')
+        }
+
+        # add paper for each team, intial age = 1
+        newPaperIds <- nextPaperId:(nextPaperId + nTeams - 1)
+        nextPaperId <- nextPaperId + nTeams
+
+        # TODO ver
+        if (nTeams > 0 && length(newPaperIds) != nTeams) {
+          stop('length(newPaperIds) != length(newPapers')
+        }
+
+        # create new papers
+        currentTeam <- 1
+        newPapers <- foreach::foreach(currentTeam = 1:nTeams, .combine = 'rbind') %do% {
+          # get indices of scientists in this team
+          currentAuthors <- teamsAuthors[[currentTeam]]
+          if (length(currentAuthors) == 0) {
+            return(NULL)
+          }
+          maxH <- max(hValues[[length(hValues)]][currentAuthors])
+          alphaAuthors <-
+            hValues[[length(hValues)]][currentAuthors] == maxH
+          #     -> more than one alpha author possible?
+
+          if (currentTeam <= nTeamsGroup1) {
+            currentSubgroup <- 1
+          } else {
+            currentSubgroup <- 2
+          }
+
+          if (boost) {
+            mertonBonus <- round(boost_size * maxH)
+            return(cbind(newPaperIds[currentTeam], currentAuthors, 1, 0, alphaAuthors, mertonBonus, currentSubgroup))
+          } else {
+            return(cbind(newPaperIds[currentTeam], currentAuthors, 1, 0, alphaAuthors, currentSubgroup))
+          }
+        }
+
+        # TODO ver each paper exactly assigned to one subgroup
+        if (nrow(unique(newPapers[ , c(1, ncol(newPapers))])) != length(unique(newPapers[ , 1]))) {
+          stop('papers assigned to more than one subgroup')
+        }
+
+        # TODO next
+        #
+        # check if old function calls are still possible
+        # test calls from (both) papers
+        # compare results with stata output
+        # code review plot_hsim
 
         if (boost) {
-          mertonBonus <- round(boost_size * maxH)
-          return(cbind(newPaperIds[currentTeam], currentAuthors, 1, 0, alphaAuthors, mertonBonus, currentSubgroup))
+          colnames(newPapers) <- c( 'paper', 'scientist','age', 'citations', 'alpha', 'merton', 'subgroup')
         } else {
-          return(cbind(newPaperIds[currentTeam], currentAuthors, 1, 0, alphaAuthors, currentSubgroup))
+          colnames(newPapers) <- c( 'paper', 'scientist','age', 'citations', 'alpha', 'subgroup')
         }
-      }
+        simulationData$papers <- rbind(simulationData$papers, newPapers)
 
-      # # for each paper: add subgroup
-      # # here: for newPapers[, 2], look up whether it is in activeScientistsGroup2; if yes, assign subgroup 2, otherwise subgroup 1
-      # newPapersSubgroups <- vector(mode = "integer", length = nrow(newPapers))
-      # newPapersSubgroups[] <- 1
-      # newPapersSubgroups[newPapers[ , 2] %in% activeScientistsGroup2] <- 2
-      #
-      # newPapers <- cbind(newPapers, newPapersSubgroups)
-
-      # TODO ver each paper exactly assigned to one subgroup
-      if (nrow(unique(newPapers[ , c(1, ncol(newPapers))])) != length(unique(newPapers[ , 1]))) {
-        stop('papers assigned to more than one subgroup')
-      }
-
-      # TODO next
-      #
-      # code review
-      # documentation
-      # test
-      # check if old function calls are still possible
-      # test calls from (both) papers
-
-      if (boost) {
-        colnames(newPapers) <- c( 'paper', 'scientist','age', 'citations', 'alpha', 'merton', 'subgroup')
-      } else {
-        colnames(newPapers) <- c( 'paper', 'scientist','age', 'citations', 'alpha', 'subgroup')
-      }
-      simulationData$papers <- rbind(simulationData$papers, newPapers)
-
-      # update alpha authors if specified
-      # TODO do this before adding new papers?
-      # TODO optimization possible?
-      cfun <- function(a, b) {return(NULL)}
-      if (update_alpha_authors) {
-        currentPaper <- 0
-        foreach::foreach(currentPaper = unique(simulationData$papers$paper),
-                                         .combine = 'cfun') %do% {
-
-          currentScientists <- simulationData$papers$scientist[
-            simulationData$papers$paper == currentPaper]
-          maxH <- max(hValues[[length(hValues)]][currentScientists])
-          alphaAuthors <- hValues[[length(hValues)]][currentScientists] == maxH
-
-          paperIndices <- which(simulationData$papers$paper == currentPaper)
-          scientistsMatches <-
-            match(currentScientists, simulationData$papers$scientist[paperIndices])
-          simulationData$papers$alpha[paperIndices][scientistsMatches] <- alphaAuthors
-          if (boost) {
-            # TODO review + test
-            simulationData$papers$merton[paperIndices][scientistsMatches] <-
-              round(boost_size * maxH)
-          }
-
-          return(NULL)
-
-        }
       }
 
       # get citations for all papers (not just the new ones...), considering their age
@@ -478,39 +555,23 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       # selfcitations
       if (selfcitations) {
 
-        # all scientists with a paper written in current period
+        # all authorships (rows in simulationData$papers) of active scientists
         papersActiveScientists <-
           which(simulationData$papers$scientist %in% newPapers[ , 'scientist'])
 
-        if (TRUE) {
-          papersActiveScientistsH <-
-            hValues[[length(hValues)]][
-              simulationData$papers$scientist[papersActiveScientists]]
+        # for each authorship of active scientists, get h index
+        papersActiveScientistsH <-
+          hValues[[length(hValues)]][
+            # scientist id for each authorship of active scientists
+            simulationData$papers$scientist[papersActiveScientists]]
+        # rows in simulationData$papers[papersActiveScientists, ] for authorships causing a selfcitation
+        selfcitedActivePapers <-
+          simulationData$papers$citations[papersActiveScientists] ==
+          papersActiveScientistsH - 1 |
+          simulationData$papers$citations[papersActiveScientists] ==
+          papersActiveScientistsH - 2
 
-          selfcitedActivePapers <-
-            simulationData$papers$citations[papersActiveScientists] ==
-            papersActiveScientistsH - 1 |
-            simulationData$papers$citations[papersActiveScientists] ==
-            papersActiveScientistsH - 2
-        } else if (testOld) {
-          # TODO old version; remove if tested
-          # TODO expected to produce the same results as in testNew
-          paperIndex <- 0
-          selfcitedActivePapers <- foreach::foreach(paperIndex = papersActiveScientists,
-                                                    .combine = 'c') %do% {
-                                                      scientistCurrentH <- hValues[[length(hValues)]][
-                                                        simulationData$papers$scientist[paperIndex]]
-                                                      if (simulationData$papers$citations[paperIndex] == scientistCurrentH - 1
-                                                          || simulationData$papers$citations[paperIndex] == scientistCurrentH - 2) {
-                                                        return(TRUE)
-                                                      } else {
-                                                        return(FALSE)
-                                                      }
-                                                    }
-        }
-
-
-        # get all rows of the selfcited papers
+        # get all rows of the selfcited papers (rows in simulationData$papers)
         # (not just the rows corresponding to the selfciting authors)
         selfcitedPapersIndices <- simulationData$papers$paper %in%
           simulationData$papers$paper[papersActiveScientists[selfcitedActivePapers]]
@@ -532,7 +593,12 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         }
         p90 <- stats::quantile(papersUnique[ , 'citations'], prob = .9, type = 1)
         top10Papers <- simulationData$papers$paper[simulationData$papers$citations > p90]
-        toppapersIndices <- simulationData$papers$paper %in% top10Papers
+        toppapersIndicesOld <- simulationData$papers$paper %in% top10Papers
+        toppapersIndices <- simulationData$papers$citations > p90
+        # TODO ver
+        if (!all(toppapersIndices == toppapersIndicesOld)) {
+          stop('toppapersIndices != toppapersIndicesOld')
+        }
       } else {
 
         papersUniqueGroup1 <- unique(simulationData$papers[simulationData$papers$subgroup == 1,
@@ -564,7 +630,14 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         top10Papers <- union(top10PapersGroup1, top10PapersGroup2)
         #   -> all papers which are a top paper in at least one of the two groups
         #       AND have at least one author in this group
-        toppapersIndices <- simulationData$papers$paper %in% top10Papers
+        toppapersIndicesOld <- simulationData$papers$paper %in% top10Papers
+        toppapersIndices <-
+          (simulationData$papers$citations > p90Group1 & simulationData$papers$subgroup == 1) |
+          (simulationData$papers$citations > p90Group2 & simulationData$papers$subgroup == 2)
+        # TODO ver
+        if (!all(toppapersIndices == toppapersIndicesOld)) {
+          stop('toppapersIndices != toppapersIndicesOld')
+        }
       }
       # count top papers
       newToppapers <- stats::aggregate(toppapersIndices,
@@ -603,7 +676,9 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
       rm(newHAlphas)
 
       # calculate mindex values
-      mindexValues[[periodLabel]][newHs$Group.1] <- newHs$x / simulationData$scientistsAgeInit[newHs$Group.1]
+      mindexValues[[periodLabel]] <- vector(mode = 'numeric', length = n)
+      mindexValues[[periodLabel]][newHs$Group.1] <-
+        newHs$x / (simulationData$scientistsAgeInit[newHs$Group.1] + currentPeriod)
 
     }
 
@@ -615,8 +690,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
 
   }
 
-  res <- list(hValuesRuns, hAlphaValuesRuns, toppaperValuesRuns, mindexValuesRuns)
-  names(res) <- c('h', 'h_alpha', 'top10_papers', 'mindex')
+  res <- list(hValuesRuns, hAlphaValuesRuns, toppaperValuesRuns, mindexValuesRuns, simulationData$scientists$subgroup)
+  names(res) <- c('h', 'h_alpha', 'top10_papers', 'mindex', 'subgroup')
   return(res)
 
 }
@@ -715,7 +790,6 @@ setup_simulation <- function(n, boost, boost_size = 0,
                                                      (dcitations_speed - 1))) /
            ((1 + (currentPaperAge / dcitations_alpha) ^ dcitations_speed) ^ 2))
     }, double(1))
-    # TODO review STATA
     nbinomP <- 1 / dcitations_dispersion
     nbinomNs <- (nbinomExps * nbinomP) / (1 - nbinomP)
 

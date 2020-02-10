@@ -12,6 +12,8 @@
 #' top-10\% papers are plotted.
 #' @param plot_mindex If this parameter is set to TRUE, the mindex values are
 #' plotted.
+#' @param subgroups If this parameter is set to TRUE, the subgroups in simdata
+#' are considered in the visualization.
 #' @param group_boundaries A list of vectors or a vector of integers specifying
 #' the groups for plotting the h-index/h-alpha values separately for each of
 #' these groups. The groups are defined based on the initial h-index of the
@@ -44,6 +46,7 @@
 plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
                       plot_toppapers = FALSE,
                       plot_mindex = FALSE,
+                      subgroups = FALSE,
                       group_boundaries = NULL,
                       exclude_group_boundaries = FALSE,
                       plot_group_diffs = FALSE) {
@@ -53,11 +56,17 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
          plot_toppapers, plot_mindex must be TRUE')
   }
 
+  if (subgroups && (!is.null(group_boundaries) || exclude_group_boundaries)) {
+    warning('if subgroups is set to TRUE, group_boundaries and exclude_group_boundaries
+            have no effect')
+  }
+
   if (typeof(simdata) != 'list' ||
-      length(unique(lapply(simdata, length))) != 1 ||
+      length(unique(lapply(simdata[1:4], length))) != 1 ||
       length(unique(unlist(
-        lapply(simdata, function(currentRun) {lapply(currentRun, length)})
-      ))) != 1) {
+        lapply(simdata[1:4], function(currentRun) {lapply(currentRun, length)})
+      ))) != 1 ||
+      length(simdata[[1]][[1]][[1]]) != length(simdata[[5]])) {
     # check if each run has same no of periods, and each period has
     # same no of returned lists (hindex values, h alpha values, toppapers, etc.)
     stop('structure of simdata not correct; make sure to use the result
@@ -127,16 +136,19 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
     groups <- 1
   }
 
+  if (subgroups) {
+    groups <- length(unique(simdata$subgroup))
+  }
+
   # plot_group_diffs: plot the difference of index/indices for two groups
   # two groups have to be specified for this
   if (plot_group_diffs) {
-    if (is.null(group_boundaries)) {
+    if (is.null(group_boundaries) && !subgroups) {
       stop('in order to plot differences between groups of scientists with
            different initial h-index, group_boundaries must be specified')
     }
     if (groups != 2) {
-      stop('differences between groups of scientists with different initial
-           h-index is only possible for two groups')
+      stop('differences between groups of scientists is only possible for two groups')
     }
   }
 
@@ -149,25 +161,29 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
                                    .combine = '+') %do% {
 
        if (groups > 1) {
-         groupsScientists <- lapply(1:groups, function(currentGroup) {
-           # TODO
-           if (exclude_group_boundaries) {
-             currentScientists <- which(hRun[[1]] >
-                                          groupBoundariesOrdered[[currentGroup]][1] &
-                                          hRun[[1]] < groupBoundariesOrdered[[currentGroup]][2])
-             if (length(currentScientists) <= 0) {
-               warning(paste('no scientist in group', currentGroup, sep = ' '))
+         if (subgroups) {
+           groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup == currentGroup)})
+         } else {
+           groupsScientists <- lapply(1:groups, function(currentGroup) {
+             # TODO
+             if (exclude_group_boundaries) {
+               currentScientists <- which(hRun[[1]] >
+                                            groupBoundariesOrdered[[currentGroup]][1] &
+                                            hRun[[1]] < groupBoundariesOrdered[[currentGroup]][2])
+               if (length(currentScientists) <= 0) {
+                 warning(paste('no scientist in group', currentGroup, sep = ' '))
+               }
+             } else {
+               currentScientists <- which(hRun[[1]] >=
+                                            groupBoundariesOrdered[[currentGroup]][1] &
+                                            hRun[[1]] <= groupBoundariesOrdered[[currentGroup]][2])
+               if (length(currentScientists) <= 0) {
+                 warning(paste('no scientist in group', currentGroup, sep = ' '))
+               }
              }
-           } else {
-             currentScientists <- which(hRun[[1]] >=
-                                          groupBoundariesOrdered[[currentGroup]][1] &
-                                          hRun[[1]] <= groupBoundariesOrdered[[currentGroup]][2])
-             if (length(currentScientists) <= 0) {
-               warning(paste('no scientist in group', currentGroup, sep = ' '))
-             }
-           }
-           return(currentScientists)
-         })
+             return(currentScientists)
+           })
+         }
        } else {
          groupsScientists <- list(1:length(hRun[[1]]))
        }
@@ -216,27 +232,31 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
        # hAlphaRunIndex <- hAlphaRunIndex + 1
 
        if (groups > 1) {
-         groupsScientists <- lapply(1:groups, function(currentGroup) {
-           # TODO
-           if (exclude_group_boundaries) {
-             currentScientists <- which(simdata$h[[hAlphaRunIndex]][[1]] >
-                                          groupBoundariesOrdered[[currentGroup]][1] &
-                                          simdata$h[[hAlphaRunIndex]][[1]] <
-                                          groupBoundariesOrdered[[currentGroup]][2])
-             if (length(currentScientists) <= 0) {
-               warning(paste('no scientist in group', currentGroup, sep = ' '))
+         if (subgroups) {
+           groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup == currentGroup)})
+         } else {
+           groupsScientists <- lapply(1:groups, function(currentGroup) {
+             # TODO
+             if (exclude_group_boundaries) {
+               currentScientists <- which(simdata$h[[hAlphaRunIndex]][[1]] >
+                                            groupBoundariesOrdered[[currentGroup]][1] &
+                                            simdata$h[[hAlphaRunIndex]][[1]] <
+                                            groupBoundariesOrdered[[currentGroup]][2])
+               if (length(currentScientists) <= 0) {
+                 warning(paste('no scientist in group', currentGroup, sep = ' '))
+               }
+             } else {
+               currentScientists <- which(simdata$h[[hAlphaRunIndex]][[1]] >=
+                                            groupBoundariesOrdered[[currentGroup]][1] &
+                                            simdata$h[[hAlphaRunIndex]][[1]] <=
+                                            groupBoundariesOrdered[[currentGroup]][2])
+               if (length(currentScientists) <= 0) {
+                 warning(paste('no scientist in group', currentGroup, sep = ' '))
+               }
              }
-           } else {
-             currentScientists <- which(simdata$h[[hAlphaRunIndex]][[1]] >=
-                                          groupBoundariesOrdered[[currentGroup]][1] &
-                                          simdata$h[[hAlphaRunIndex]][[1]] <=
-                                          groupBoundariesOrdered[[currentGroup]][2])
-             if (length(currentScientists) <= 0) {
-               warning(paste('no scientist in group', currentGroup, sep = ' '))
-             }
-           }
-           return(currentScientists)
-         })
+             return(currentScientists)
+           })
+         }
        } else {
          groupsScientists <- list(1:length(simdata$h[[1]][[1]]))
        }
@@ -290,27 +310,31 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
                                           # toppapersRunIndex <- toppapersRunIndex + 1
 
                                           if (groups > 1) {
-                                            groupsScientists <- lapply(1:groups, function(currentGroup) {
-                                              # TODO
-                                              if (exclude_group_boundaries) {
-                                                currentScientists <- which(simdata$h[[toppapersRunIndex]][[1]] >
-                                                                             groupBoundariesOrdered[[currentGroup]][1] &
-                                                                             simdata$h[[toppapersRunIndex]][[1]] <
-                                                                             groupBoundariesOrdered[[currentGroup]][2])
-                                                if (length(currentScientists) <= 0) {
-                                                  warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                            if (subgroups) {
+                                              groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup == currentGroup)})
+                                            } else {
+                                              groupsScientists <- lapply(1:groups, function(currentGroup) {
+                                                # TODO
+                                                if (exclude_group_boundaries) {
+                                                  currentScientists <- which(simdata$h[[toppapersRunIndex]][[1]] >
+                                                                               groupBoundariesOrdered[[currentGroup]][1] &
+                                                                               simdata$h[[toppapersRunIndex]][[1]] <
+                                                                               groupBoundariesOrdered[[currentGroup]][2])
+                                                  if (length(currentScientists) <= 0) {
+                                                    warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                                  }
+                                                } else {
+                                                  currentScientists <- which(simdata$h[[toppapersRunIndex]][[1]] >=
+                                                                               groupBoundariesOrdered[[currentGroup]][1] &
+                                                                               simdata$h[[toppapersRunIndex]][[1]] <=
+                                                                               groupBoundariesOrdered[[currentGroup]][2])
+                                                  if (length(currentScientists) <= 0) {
+                                                    warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                                  }
                                                 }
-                                              } else {
-                                                currentScientists <- which(simdata$h[[toppapersRunIndex]][[1]] >=
-                                                                             groupBoundariesOrdered[[currentGroup]][1] &
-                                                                             simdata$h[[toppapersRunIndex]][[1]] <=
-                                                                             groupBoundariesOrdered[[currentGroup]][2])
-                                                if (length(currentScientists) <= 0) {
-                                                  warning(paste('no scientist in group', currentGroup, sep = ' '))
-                                                }
-                                              }
-                                              return(currentScientists)
-                                            })
+                                                return(currentScientists)
+                                              })
+                                            }
                                           } else {
                                             groupsScientists <- list(1:length(simdata$h[[1]][[1]]))
                                           }
@@ -364,27 +388,31 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
                                              # mindexRunIndex <- mindexRunIndex + 1
 
                                              if (groups > 1) {
-                                               groupsScientists <- lapply(1:groups, function(currentGroup) {
-                                                 # TODO
-                                                 if (exclude_group_boundaries) {
-                                                   currentScientists <- which(simdata$h[[mindexRunIndex]][[1]] >
-                                                                                groupBoundariesOrdered[[currentGroup]][1] &
-                                                                                simdata$h[[mindexRunIndex]][[1]] <
-                                                                                groupBoundariesOrdered[[currentGroup]][2])
-                                                   if (length(currentScientists) <= 0) {
-                                                     warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                               if (subgroups) {
+                                                 groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup == currentGroup)})
+                                               } else {
+                                                 groupsScientists <- lapply(1:groups, function(currentGroup) {
+                                                   # TODO
+                                                   if (exclude_group_boundaries) {
+                                                     currentScientists <- which(simdata$h[[mindexRunIndex]][[1]] >
+                                                                                  groupBoundariesOrdered[[currentGroup]][1] &
+                                                                                  simdata$h[[mindexRunIndex]][[1]] <
+                                                                                  groupBoundariesOrdered[[currentGroup]][2])
+                                                     if (length(currentScientists) <= 0) {
+                                                       warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                                     }
+                                                   } else {
+                                                     currentScientists <- which(simdata$h[[mindexRunIndex]][[1]] >=
+                                                                                  groupBoundariesOrdered[[currentGroup]][1] &
+                                                                                  simdata$h[[mindexRunIndex]][[1]] <=
+                                                                                  groupBoundariesOrdered[[currentGroup]][2])
+                                                     if (length(currentScientists) <= 0) {
+                                                       warning(paste('no scientist in group', currentGroup, sep = ' '))
+                                                     }
                                                    }
-                                                 } else {
-                                                   currentScientists <- which(simdata$h[[mindexRunIndex]][[1]] >=
-                                                                                groupBoundariesOrdered[[currentGroup]][1] &
-                                                                                simdata$h[[mindexRunIndex]][[1]] <=
-                                                                                groupBoundariesOrdered[[currentGroup]][2])
-                                                   if (length(currentScientists) <= 0) {
-                                                     warning(paste('no scientist in group', currentGroup, sep = ' '))
-                                                   }
-                                                 }
-                                                 return(currentScientists)
-                                               })
+                                                   return(currentScientists)
+                                                 })
+                                               }
                                              } else {
                                                groupsScientists <- list(1:length(simdata$h[[1]][[1]]))
                                              }
@@ -439,36 +467,40 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
   if (groups > 1) {
 
-    labels <- vector(mode = 'character', length = groups)
-    for (currentGroup in 1:groups) {
-      if (exclude_group_boundaries) {
-        labels[currentGroup] <- eval(bquote(expression(
-          h[init] %in% group("(", list(
-            .(groupBoundariesOrdered[[currentGroup]][1]),
-            .(groupBoundariesOrdered[[currentGroup]][2])
-          ), ")")
-        )))
-      } else {
-        labels[currentGroup] <- eval(bquote(expression(
-          h[init] %in% group("[", list(
-            .(groupBoundariesOrdered[[currentGroup]][1]),
-            .(groupBoundariesOrdered[[currentGroup]][2])
-          ), ")")
-        )))
+    if (subgroups) {
+      labels <- as.character(1:groups)
+    } else {
+      labels <- vector(mode = 'character', length = groups)
+      for (currentGroup in 1:groups) {
+        if (exclude_group_boundaries) {
+          labels[currentGroup] <- eval(bquote(expression(
+            h[init] %in% group("(", list(
+              .(groupBoundariesOrdered[[currentGroup]][1]),
+              .(groupBoundariesOrdered[[currentGroup]][2])
+            ), ")")
+          )))
+        } else {
+          labels[currentGroup] <- eval(bquote(expression(
+            h[init] %in% group("[", list(
+              .(groupBoundariesOrdered[[currentGroup]][1]),
+              .(groupBoundariesOrdered[[currentGroup]][2])
+            ), ")")
+          )))
+        }
       }
-    }
-    if (typeof(group_boundaries) %in% c('double', 'integer')) {
-      labels[1] <- eval(bquote(expression(
-        h[init] < .(groupBoundariesOrdered[[1]][2])
-      )))
-      if (exclude_group_boundaries) {
-        labels[groups] <- eval(bquote(expression(
-          h[init] > .(groupBoundariesOrdered[[groups]][1])
+      if (typeof(group_boundaries) %in% c('double', 'integer')) {
+        labels[1] <- eval(bquote(expression(
+          h[init] < .(groupBoundariesOrdered[[1]][2])
         )))
-      } else {
-        labels[groups] <- eval(bquote(expression(
-          h[init] >= .(groupBoundariesOrdered[[groups]][1])
-        )))
+        if (exclude_group_boundaries) {
+          labels[groups] <- eval(bquote(expression(
+            h[init] > .(groupBoundariesOrdered[[groups]][1])
+          )))
+        } else {
+          labels[groups] <- eval(bquote(expression(
+            h[init] >= .(groupBoundariesOrdered[[groups]][1])
+          )))
+        }
       }
     }
 

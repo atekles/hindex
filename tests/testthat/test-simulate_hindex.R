@@ -1,7 +1,7 @@
 context("Simulating h-index")
 library(foreach)
 
-test_that("initialization", {
+test_that("h_sim", {
 
   set.seed(12345)
 
@@ -93,4 +93,127 @@ test_that("initialization", {
             group_boundaries = 'median', exclude_group_boundaries = TRUE,
             plot_group_diffs = TRUE)
 
+  skip_on_cran()
+
+  init_types <- c('fixage', 'varage')
+  ns <- c(20, 30, 100, 100, 100)
+  periodss <- c(1:5)
+  subgroups_distrs <- c(.1, .2, .5, .9, 1)
+  subgroup_advantages <- c(-10, -.3, 0, .1, 100)
+  subgroup_exchanges <- c(0, .3, .5, .8, .1)
+  coauthorss <- c(2, 3, 5, 10, 100)
+  max_age_scientistss <- c(1, 2, 4, 10, 100)
+  dpapers_pois_lambdas <- c(1:3, 10.321, 100)
+  productivitys <- c(0, 5, 40.3, 80, 100)
+  dcitations_speeds <- c(1.1, 3, 2, 10, 100)
+  dcitations_peaks <- c(1, 3.1, 5, 10, 100)
+  dcitations_means <- c(1, 2.1, 5, 10, 100)
+  strategic_teamss <- c(T, F)
+  diligence_shares <- c(0, .2, .5, .9, 1)
+  diligence_corrs <- c(0, .3, .5, .8, 1)
+  selfcitationss <- c(T, F)
+  update_alpha_authorss <- c(T, F)
+  boosts <- c(T, F)
+  boost_sizes <- c(-100, 0, .01, 10, 100)
+  alpha_shares <- c(.01, .3, .5, .99, 1)
+  dpapers_nbinom_dispersions <- c(.01, 1, 5, 10.123, 100)
+  dpapers_nbinom_means <- c(.01, 1, 5, 10.123, 100)
+  dcitations_dispersions <- c(1, 2, 5, 10.123, 100)
+
+  message('tests for poisson distrs...')
+
+  for (i in 1:5) {
+    message('test run ', i, '...')
+    simulate_hindex(runs = 2, n = ns[i], periods = periodss[i],
+                    subgroups_distr = subgroups_distrs[i],
+                    subgroup_advantage = subgroup_advantages[i],
+                    subgroup_exchange = subgroup_exchanges[i],
+                    coauthors = coauthorss[i],
+                    max_age_scientists = max_age_scientistss[i],
+                    init_type = init_types[i %% 2 + 1],
+                    distr_initial_papers = 'poisson',
+                    dpapers_pois_lambda = dpapers_pois_lambdas[i],
+                    productivity = productivitys[i],
+                    distr_citations = 'poisson',
+                    dcitations_speed = dcitations_speeds[i],
+                    dcitations_peak = dcitations_peaks[i],
+                    dcitations_mean = dcitations_means[i],
+                    strategic_teams = strategic_teamss[i %% 2 + 1],
+                    diligence_share = diligence_shares[i],
+                    diligence_corr = diligence_corrs[i],
+                    selfcitations = selfcitationss[i %% 2 + 1],
+                    update_alpha_authors = update_alpha_authorss[i %% 2 + 1],
+                    boost = boosts[i %% 2 + 1],
+                    boost_size = boost_sizes[i],
+                    alpha_share = alpha_shares[i]
+                    )
+  }
+
+  message('tests for nbinomial distrs...')
+
+  for (i in 1:5) {
+    message('test run ', i, '...')
+    simulate_hindex(runs = 2, n = ns[i], periods = periodss[i],
+                    subgroups_distr = subgroups_distrs[i],
+                    subgroup_advantage = subgroup_advantages[i],
+                    subgroup_exchange = subgroup_exchanges[i],
+                    coauthors = coauthorss[i],
+                    max_age_scientists = max_age_scientistss[i],
+                    init_type = init_types[i %% 2 + 1],
+                    distr_initial_papers = 'nbinomial',
+                    dpapers_nbinom_dispersion = dpapers_nbinom_dispersions[i],
+                    dpapers_nbinom_mean = dpapers_nbinom_means[i],
+                    productivity = productivitys[i],
+                    distr_citations = 'nbinomial',
+                    dcitations_speed = dcitations_speeds[i],
+                    dcitations_peak = dcitations_peaks[i],
+                    dcitations_mean = dcitations_means[i],
+                    dcitations_dispersion = dcitations_dispersions[i],
+                    strategic_teams = strategic_teamss[i %% 2 + 1],
+                    diligence_share = diligence_shares[i],
+                    diligence_corr = diligence_corrs[i],
+                    selfcitations = selfcitationss[i %% 2 + 1],
+                    update_alpha_authors = update_alpha_authorss[i %% 2 + 1],
+                    boost = boosts[i %% 2 + 1],
+                    boost_size = boost_sizes[i],
+                    alpha_share = alpha_shares[i]
+    )
+  }
+
+  simdata <- simulate_hindex(runs  =  2,  n  =  200,  periods  =  20,
+                             coauthors  =  3,
+                             distr_initial_papers = 'poisson',
+                             dpapers_pois_lambda = 10,
+                             distr_citations = 'poisson',
+                             dcitations_mean = 5,
+                             dcitations_peak = 3, alpha_share = .33)
+
+  simdata <- simulate_hindex(runs  =  2,  n  =  200,  periods  =  20,
+                             coauthors  =  3,
+                             distr_initial_papers = 'poisson',
+                             dpapers_pois_lambda = 10,
+                             distr_citations = 'poisson',
+                             dcitations_mean = 5,
+                             dcitations_peak = 3,
+                             alpha_share = .33,
+                             boost = TRUE, boost_size = .5)
+
+  simdata <- simulate_hindex(runs  =  2,  n  =  200,  periods  =  20,
+                             coauthors  =  3,
+                             distr_initial_papers = 'poisson',
+                             dpapers_pois_lambda = 10,
+                             distr_citations = 'poisson',
+                             dcitations_mean = 5,
+                             dcitations_peak = 3,
+                             alpha_share = .33,
+                             diligence_corr = .8, diligence_share = .6)
+
+  simdata <- simulate_hindex(runs  =  2,  n  =  200,  periods  =  20,
+                             coauthors  =  3,
+                             distr_initial_papers = 'poisson',
+                             dpapers_pois_lambda = 10,
+                             distr_citations = 'poisson',
+                             dcitations_mean = 5,
+                             dcitations_peak = 3,
+                             alpha_share = .33, strategic_teams = TRUE)
 })
