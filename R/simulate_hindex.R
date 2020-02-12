@@ -223,6 +223,7 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
   hAlphaValuesRuns <- list()
   toppaperValuesRuns <- list()
   mindexValuesRuns <- list()
+  subgroupsRuns <- list()
 
   for (currentRun in 1:runs) {
 
@@ -680,10 +681,11 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
     hAlphaValuesRuns[[runLabel]] <- hAlphaValues
     toppaperValuesRuns[[runLabel]] <- toppaperValues
     mindexValuesRuns[[runLabel]] <- mindexValues
+	subgroupsRuns[[runLabel]] <- simulationData$scientists$subgroup
 
   }
 
-  res <- list(hValuesRuns, hAlphaValuesRuns, toppaperValuesRuns, mindexValuesRuns, simulationData$scientists$subgroup)
+  res <- list(hValuesRuns, hAlphaValuesRuns, toppaperValuesRuns, mindexValuesRuns, subgroupsRuns)
   names(res) <- c('h', 'h_alpha', 'top10_papers', 'mindex', 'subgroup')
   return(res)
 

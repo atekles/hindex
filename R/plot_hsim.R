@@ -64,11 +64,15 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
   }
 
   if (typeof(simdata) != 'list' ||
-      length(unique(lapply(simdata[1:4], length))) != 1 ||
+      length(unique(lapply(simdata, length))) != 1 ||
       length(unique(unlist(
         lapply(simdata[1:4], function(currentRun) {lapply(currentRun, length)})
       ))) != 1 ||
-      length(simdata[[1]][[1]][[1]]) != length(simdata[[5]])) {
+      length(simdata[[1]][[1]][[1]]) != length(simdata[[5]][[1]]) ||
+	  length(unique(unlist(
+		lapply(simdata$subgroup, function(SubgroupsCurrentRun) {length(unique(SubgroupsCurrentRun))})
+	  ))) != 1 # verify that in each run has the same number of subgroups 
+  ) {
     # check if each run has same no of periods, and each period has
     # same no of returned lists (hindex values, h alpha values, toppapers, etc.)
     stop('structure of simdata not correct; make sure to use the result
@@ -139,7 +143,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
   }
 
   if (subgroups) {
-    groups <- length(unique(simdata$subgroup))
+    groups <- length(unique(simdata$subgroup[[1]]))
   }
 
   # plot_group_diffs: plot the difference of index/indices for two groups
@@ -158,13 +162,15 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
     nPeriods <- length(simdata$h[[1]])
 
-    hRun <- NULL
-    hMeansRuns <- foreach::foreach(hRun = simdata$h,
+    hRunIndex <- NULL
+    hMeansRuns <- foreach::foreach(hRunIndex = 1:length(simdata$h),
                                    .combine = '+') %do% {
+								   
+	   hRun <- simdata$h[[hRunIndex]]
 
        if (groups > 1) {
          if (subgroups) {
-           groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup == currentGroup)})
+           groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup[[hRunIndex]] == currentGroup)})
          } else {
            groupsScientists <- lapply(1:groups, function(currentGroup) {
              # TODO
@@ -235,7 +241,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
        if (groups > 1) {
          if (subgroups) {
-           groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup == currentGroup)})
+           groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup[[hAlphaRunIndex]] == currentGroup)})
          } else {
            groupsScientists <- lapply(1:groups, function(currentGroup) {
              # TODO
@@ -313,7 +319,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
                                           if (groups > 1) {
                                             if (subgroups) {
-                                              groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup == currentGroup)})
+                                              groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup[[toppapersRunIndex]] == currentGroup)})
                                             } else {
                                               groupsScientists <- lapply(1:groups, function(currentGroup) {
                                                 # TODO
@@ -391,7 +397,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
 
                                              if (groups > 1) {
                                                if (subgroups) {
-                                                 groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup == currentGroup)})
+                                                 groupsScientists <- lapply(1:groups, function(currentGroup) {which(simdata$subgroup[[mindexRunIndex]] == currentGroup)})
                                                } else {
                                                  groupsScientists <- lapply(1:groups, function(currentGroup) {
                                                    # TODO
