@@ -4,4 +4,12 @@
 
 # hindex 0.1.1
 
-* in `simulate_hindex()`: use `round()` instead of `floor()` for determining the number of author teams based on the `coauthors` argument (this corresponds to the 'STATA' ado `h-index`)
+* in `simulate_hindex()`: implemented functionality for considering seniority of scientists during initialization (parameter init_type)
+* in `simulate_hindex()`: implemented functionality to consider subgroups of scientists (and corresponding options, s. docs)
+* in `simulate_hindex()`: calculate number of top-10% papers
+* in `plot_hsim()`: implemented functionality to plot top-10% papers
+* in `setup_simulation()`: return initial age of scientists
+* in `simulate_hindex()`: calculate mindex 
+* in `plot_hsim()`: implemented functionality to plot mindex
+* in `plot_hsim()`: visualize subgroups 
+

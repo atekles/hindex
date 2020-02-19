@@ -62,14 +62,6 @@ test_that("h_sim", {
                   dcitations_peak = 3, dcitations_mean = 2, dcitations_dispersion = 1.3)
   simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
                   subgroups_distr = .3)
-  expect_warning(simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
-                  subgroups_distr = .1))
-  expect_warning(simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
-                  subgroups_distr = .05))
-  expect_warning(simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
-                  subgroups_distr = .9))
-  expect_warning(simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
-                  subgroups_distr = .95))
 
   plot_hsim(simdata, plot_hindex = TRUE, plot_halpha = TRUE,
             group_boundaries = c(3, 5))
@@ -93,7 +85,25 @@ test_that("h_sim", {
             group_boundaries = 'median', exclude_group_boundaries = TRUE,
             plot_group_diffs = TRUE)
 
+
+  simdata <- simulate_hindex(runs = 2, n = n, periods = 3,
+                             subgroups_distr = .5,
+                             dpapers_pois_lambda = 4, dcitations_speed = 3,
+                             dcitations_peak = 2, dcitations_mean = 5)
+  plot_hsim(simdata, plot_halpha = TRUE,
+            subgroups = TRUE, exclude_group_boundaries = TRUE,
+            plot_group_diffs = TRUE)
+
   skip_on_cran()
+
+  expect_warning(simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
+                                 subgroups_distr = .1))
+  expect_warning(simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
+                                 subgroups_distr = .05))
+  expect_warning(simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
+                                 subgroups_distr = .9))
+  expect_warning(simulate_hindex(runs = 2, n = n, periods = 3, strategic_teams = TRUE,
+                                 subgroups_distr = .95))
 
   init_types <- c('fixage', 'varage')
   ns <- c(20, 30, 100, 100, 100)
@@ -180,40 +190,4 @@ test_that("h_sim", {
     )
   }
 
-  simdata <- simulate_hindex(runs  =  2,  n  =  200,  periods  =  20,
-                             coauthors  =  3,
-                             distr_initial_papers = 'poisson',
-                             dpapers_pois_lambda = 10,
-                             distr_citations = 'poisson',
-                             dcitations_mean = 5,
-                             dcitations_peak = 3, alpha_share = .33)
-
-  simdata <- simulate_hindex(runs  =  2,  n  =  200,  periods  =  20,
-                             coauthors  =  3,
-                             distr_initial_papers = 'poisson',
-                             dpapers_pois_lambda = 10,
-                             distr_citations = 'poisson',
-                             dcitations_mean = 5,
-                             dcitations_peak = 3,
-                             alpha_share = .33,
-                             boost = TRUE, boost_size = .5)
-
-  simdata <- simulate_hindex(runs  =  2,  n  =  200,  periods  =  20,
-                             coauthors  =  3,
-                             distr_initial_papers = 'poisson',
-                             dpapers_pois_lambda = 10,
-                             distr_citations = 'poisson',
-                             dcitations_mean = 5,
-                             dcitations_peak = 3,
-                             alpha_share = .33,
-                             diligence_corr = .8, diligence_share = .6)
-
-  simdata <- simulate_hindex(runs  =  2,  n  =  200,  periods  =  20,
-                             coauthors  =  3,
-                             distr_initial_papers = 'poisson',
-                             dpapers_pois_lambda = 10,
-                             distr_citations = 'poisson',
-                             dcitations_mean = 5,
-                             dcitations_peak = 3,
-                             alpha_share = .33, strategic_teams = TRUE)
 })

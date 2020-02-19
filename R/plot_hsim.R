@@ -71,7 +71,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
       length(simdata[[1]][[1]][[1]]) != length(simdata[[5]][[1]]) ||
 	  length(unique(unlist(
 		lapply(simdata$subgroup, function(SubgroupsCurrentRun) {length(unique(SubgroupsCurrentRun))})
-	  ))) != 1 # verify that in each run has the same number of subgroups 
+	  ))) != 1 # verify that in each run has the same number of subgroups
   ) {
     # check if each run has same no of periods, and each period has
     # same no of returned lists (hindex values, h alpha values, toppapers, etc.)
@@ -165,7 +165,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
     hRunIndex <- NULL
     hMeansRuns <- foreach::foreach(hRunIndex = 1:length(simdata$h),
                                    .combine = '+') %do% {
-								   
+
 	   hRun <- simdata$h[[hRunIndex]]
 
        if (groups > 1) {
@@ -476,7 +476,7 @@ plot_hsim <- function(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
   if (groups > 1) {
 
     if (subgroups) {
-      labels <- as.character(1:groups)
+      labels <- paste('Subgroup', 1:groups)
     } else {
       labels <- vector(mode = 'character', length = groups)
       for (currentGroup in 1:groups) {
