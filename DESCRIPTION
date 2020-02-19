@@ -1,6 +1,6 @@
 Package: hindex
 Title: Simulating the Development of h-Index Values
-Version: 0.1.0.9000
+Version: 0.2.0
 Authors@R: c(
     person(given = "Alexander",
            family = "Tekles",
