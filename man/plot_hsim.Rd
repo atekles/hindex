@@ -4,10 +4,17 @@
 \alias{plot_hsim}
 \title{Plot the result of simulate_hindex}
 \usage{
-plot_hsim(simdata, plot_hindex = FALSE, plot_halpha = FALSE,
-  plot_toppapers = FALSE, plot_mindex = FALSE, subgroups = FALSE,
-  group_boundaries = NULL, exclude_group_boundaries = FALSE,
-  plot_group_diffs = FALSE)
+plot_hsim(
+  simdata,
+  plot_hindex = FALSE,
+  plot_halpha = FALSE,
+  plot_toppapers = FALSE,
+  plot_mindex = FALSE,
+  subgroups = FALSE,
+  group_boundaries = NULL,
+  exclude_group_boundaries = FALSE,
+  plot_group_diffs = FALSE
+)
 }
 \arguments{
 \item{simdata}{The result of a simulation returned

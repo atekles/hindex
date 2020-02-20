@@ -91,7 +91,7 @@ test_that("h_sim", {
                              dpapers_pois_lambda = 4, dcitations_speed = 3,
                              dcitations_peak = 2, dcitations_mean = 5)
   plot_hsim(simdata, plot_halpha = TRUE,
-            subgroups = TRUE, exclude_group_boundaries = TRUE,
+            subgroups = TRUE,
             plot_group_diffs = TRUE)
 
   skip_on_cran()

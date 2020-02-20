@@ -489,7 +489,8 @@ simulate_hindex <- function(runs = 1, n = 100, periods = 20,
         }
 
         # TODO ver each paper exactly assigned to one subgroup
-        if (nrow(unique(newPapers[ , c(1, ncol(newPapers))])) != length(unique(newPapers[ , 1]))) {
+        if (nrow(newPapers) != 1 &&
+            nrow(unique(newPapers[ , c(1, ncol(newPapers))])) != length(unique(newPapers[ , 1]))) {
           stop('papers assigned to more than one subgroup')
         }
 
